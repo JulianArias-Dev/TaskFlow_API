@@ -18,7 +18,6 @@ public class TaskBuilder
     {
         _task = new TaskEntity
         {
-            ProjectId = projectId,
             ColumnId = columnId,
             Status = TaskStatus.TODO,
             Priority = TaskPriority.MEDIUM,
@@ -55,12 +54,6 @@ public class TaskBuilder
         _task.Priority = priority;
         return this;
     }
-
-	//public TaskBuilder WithAssignee(Guid userId)
-	//{
-	//    _task.AssignedToUserId = userId;
-	//    return this;
-	//}
 
 	public TaskBuilder WithAssignee(Guid userId)
 	{
@@ -130,12 +123,7 @@ public class TaskBuilder
         {
             throw new InvalidOperationException("Task title is required");
         }
-
-        if (_task.ProjectId == Guid.Empty)
-        {
-            throw new InvalidOperationException("Project ID is required");
-        }
-
+        
         if (_task.ColumnId == Guid.Empty)
         {
             throw new InvalidOperationException("Column ID is required");
@@ -155,7 +143,6 @@ public class TaskBuilder
     {
         _task = new TaskEntity
         {
-            ProjectId = projectId,
             ColumnId = columnId,
             Status = TaskStatus.TODO,
             Priority = TaskPriority.MEDIUM,

@@ -77,7 +77,7 @@ public class AuthController : ControllerBase
             var result = await _authService.RegisterAsync(registerDto);
             _logger.LogInformation("User {Email} registered successfully", registerDto.Email);
             return CreatedAtAction(nameof(Login), null, 
-                ResponseDto<LoginResponseDto>.SuccessResponse(result, "User registered successfully"));
+                ResponseDto<LoginResponseDto>.SuccessResponse(result!, "User registered successfully"));
         }
         catch (InvalidOperationException ex)
         {

@@ -50,7 +50,6 @@ public class TaskPrototype : TaskEntity, IPrototype
                 Type = this.Type,
                 Status = this.Status,
                 Priority = this.Priority,
-                ProjectId = this.ProjectId,
                 ColumnId = this.ColumnId,
 				Assignments = this.Assignments?.Select(a => new TaskAssignment
 				{
@@ -95,7 +94,6 @@ public class ProjectPrototype : Project, IPrototype
                 cloned.Tasks = this.Tasks.Select(t =>
                 {
                     var taskClone = (TaskEntity)t.Clone();
-                    taskClone.ProjectId = cloned.Id;
                     return taskClone;
                 }).ToList();
             }

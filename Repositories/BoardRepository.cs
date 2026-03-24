@@ -26,6 +26,8 @@ public class BoardRepository : Repository<Board>, IBoardRepository
     public async System.Threading.Tasks.Task<IEnumerable<Board>> GetBoardsByProjectAsync(Guid projectId)
     {
         return await _dbSet
+            .Include(b => b.Columns)
+                .ThenInclude(c => c.Tasks)
             .Where(b => b.ProjectId == projectId)
             .OrderBy(b => b.DisplayOrder)
             .ToListAsync();
@@ -40,7 +42,10 @@ public class BoardRepository : Repository<Board>, IBoardRepository
 
     public async System.Threading.Tasks.Task<(List<Board> items, int totalCount)> GetBoardsPagedByProjectAsync(Guid projectId, int pageNumber, int pageSize)
     {
-        var query = _dbSet.Where(b => b.ProjectId == projectId);
+        var query = _dbSet
+            .Include(b => b.Columns)
+            .ThenInclude(c => c.Tasks)
+            .Where(b => b.ProjectId == projectId);
         var totalCount = await query.CountAsync();
         var items = await query
             .OrderBy(b => b.DisplayOrder)
