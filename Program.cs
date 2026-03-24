@@ -95,36 +95,41 @@ var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException(
 var key = Encoding.ASCII.GetBytes(secretKey);
 
 builder.Services
-    .AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(key),
-            ValidateIssuer = true,
-            ValidIssuer = jwtSettings["Issuer"],
-            ValidateAudience = true,
-            ValidAudience = jwtSettings["Audience"],
-            ValidateLifetime = true,
-            ClockSkew = TimeSpan.Zero
-        };
-        options.Events = new JwtBearerEvents
-        {
-            OnAuthenticationFailed = context =>
-            {
-                if (context.Exception.GetType() == typeof(SecurityTokenExpiredException))
-                {
-                    context.Response.Headers.Add("X-Token-Expired", "true");
-                }
-                return System.Threading.Tasks.Task.CompletedTask;
-            }
-        };
-    });
+	.AddAuthentication(options =>
+	{
+		options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+		options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+	})
+	.AddJwtBearer(options =>
+	{
+		options.TokenValidationParameters = new TokenValidationParameters
+		{
+			ValidateIssuerSigningKey = true,
+			IssuerSigningKey = new SymmetricSecurityKey(key),
+			ValidateIssuer = true,
+			ValidIssuer = jwtSettings["Issuer"],
+			ValidateAudience = true,
+			ValidAudience = jwtSettings["Audience"],
+			ValidateLifetime = true,
+			ClockSkew = TimeSpan.Zero // Crucial para que expire exactamente al segundo
+		};
+
+		options.Events = new JwtBearerEvents
+		{
+			OnAuthenticationFailed = context =>
+			{
+				if (context.Exception is SecurityTokenExpiredException)
+				{
+					// CORRECCIÓN: Usar el indexador para evitar el ArgumentException
+					context.Response.Headers["X-Token-Expired"] = "true";
+
+					// TIP: Si usas CORS, debes exponer la cabecera para que el Frontend (Angular) pueda verla
+					context.Response.Headers["Access-Control-Expose-Headers"] = "X-Token-Expired";
+				}
+				return System.Threading.Tasks.Task.CompletedTask;
+			}
+		};
+	});
 
 // Authorization policies
 builder.Services.AddAuthorizationBuilder()

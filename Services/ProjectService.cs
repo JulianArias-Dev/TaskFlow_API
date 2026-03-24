@@ -68,39 +68,19 @@ public class ProjectService : IProjectService
     {
         var project = new ProjectBuilder(ownerId)
             .WithName(createProjectDto.Name)
-            .WithDescription(createProjectDto.Description)
+            .WithDescription(createProjectDto.Description ?? "")
             .WithColor(createProjectDto.Color)
             .WithStartDate(Convert.ToDateTime(createProjectDto.StartDate))
             .Build();
 
         await _unitOfWork.Projects.AddAsync(project);
 
-        var defaultBoard = new Board
-        {
-            Id = Guid.NewGuid(),
-            Name = "Main Board",
-            Description = $"Default board for {project.Name}",
-            ProjectId = project.Id,
-            CreatedAt = DateTime.UtcNow
-        };
+        var defaultBoard = new BoardBuilder()
+            .WithBasicInfo("Main Board", $"Default board for {project.Name}", project.Id)
+            .WithDefaultColumns()
+            .Build();
 
 		await _unitOfWork.Boards.AddAsync(defaultBoard);
-
-		var columnNames = new[] { "Por hacer", "En progreso", "En revisión", "Completado" };
-
-		for (int i = 0; i < columnNames.Length; i++)
-		{
-			var column = new Column
-			{
-				Id = Guid.NewGuid(),
-				BoardId = defaultBoard.Id,
-				Name = columnNames[i],
-				DisplayOrder = i, // Es buena práctica tener un orden para el frontend
-				CreatedAt = DateTime.UtcNow
-			};
-
-			await _unitOfWork.Columns.AddAsync(column);
-		}
 
 		await _unitOfWork.SaveChangesAsync();
         

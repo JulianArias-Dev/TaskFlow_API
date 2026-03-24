@@ -60,12 +60,7 @@ public class TaskFlowDbContext : DbContext
             .HasMany(p => p.Boards)
             .WithOne(b => b.Project)
             .HasForeignKey(b => b.ProjectId)
-            .OnDelete(DeleteBehavior.Cascade);
-        modelBuilder.Entity<Project>()
-            .HasMany(p => p.Tasks)
-            .WithOne(t => t.Project)
-            .HasForeignKey(t => t.ProjectId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Cascade);        
         modelBuilder.Entity<Project>()
             .HasMany(p => p.Tags)
             .WithOne(t => t.Project)
@@ -93,7 +88,7 @@ public class TaskFlowDbContext : DbContext
             .HasMany(c => c.Tasks)
             .WithOne(t => t.Column)
             .HasForeignKey(t => t.ColumnId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         // Task Configuration
         modelBuilder.Entity<TaskEntity>()

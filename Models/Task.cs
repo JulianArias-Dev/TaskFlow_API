@@ -47,9 +47,7 @@ public class Task : ICloneable
     public TaskPriority Priority { get; set; } = TaskPriority.MEDIUM;
     
     // Foreign Keys
-    public Guid ProjectId { get; set; }
     public Guid ColumnId { get; set; }
-    //public Guid? AssignedToUserId { get; set; }
     public Guid? ParentTaskId { get; set; } // Para tareas recursivas/subtareas
 
     // Metadata
@@ -63,7 +61,6 @@ public class Task : ICloneable
     // Navigation Properties
     public User? AssignedTo { get; set; }
     public Column? Column { get; set; }
-    public Project? Project { get; set; }
     
     // Recursividad para subtareas
     public Task? ParentTask { get; set; }
@@ -87,7 +84,6 @@ public class Task : ICloneable
             Type = this.Type,
             Status = this.Status,
             Priority = this.Priority,
-            ProjectId = this.ProjectId,
             ColumnId = this.ColumnId,
 			//AssignedToUserId = this.AssignedToUserId,
 			Assignments = new List<TaskAssignment>(),

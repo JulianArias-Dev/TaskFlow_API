@@ -49,14 +49,15 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	}
 
 	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByProjectAsync(Guid projectId)
-    {
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Include(t => t.Column)
-            .Where(t => t.ProjectId == projectId)
-            .OrderBy(t => t.Priority)
-            .ToListAsync();
-    }
+	{
+		return await _dbSet
+			.Include(t => t.Column)
+				.ThenInclude(c => c!.Board)
+			.Include(t => t.Assignments)
+			.Where(t => t.Column!.Board!.ProjectId == projectId)
+			.OrderBy(t => t.Priority)
+			.ToListAsync();
+	}
 
 	public async System.Threading.Tasks.Task<TaskEntity?> GetByIdWithSubtasksAsync(Guid id)
 	{
@@ -128,22 +129,24 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
             .ToListAsync();
     }
 
-    public async System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByProjectAsync(Guid projectId, int pageNumber, int pageSize)
-    {
-        var query = _dbSet
-            .Include(t => t.AssignedTo)
-            .Include(t => t.Column)
-            .Where(t => t.ProjectId == projectId);
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderBy(t => t.Priority)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-        return (items, totalCount);
-    }
+	public async Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByProjectAsync(Guid projectId, int pageNumber, int pageSize)
+	{
+		var query = _dbSet
+			.Include(t => t.Assignments) 
+			.Include(t => t.Column)
+			.Where(t => t.Column!.Board!.ProjectId == projectId); 
 
-    public async System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(TaskStatus status, int pageNumber, int pageSize)
+		var totalCount = await query.CountAsync();
+		var items = await query
+			.OrderBy(t => t.Priority)
+			.Skip((pageNumber - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync();
+
+		return (items, totalCount);
+	}
+
+	public async System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(TaskStatus status, int pageNumber, int pageSize)
     {
         var query = _dbSet
             .Include(t => t.AssignedTo)
@@ -157,12 +160,13 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
         return (items, totalCount);
     }
 
-    public async System.Threading.Tasks.Task<int> GetTaskCountByProjectAsync(Guid projectId)
-    {
-        return await _dbSet.CountAsync(t => t.ProjectId == projectId);
-    }
+	public async Task<int> GetTaskCountByProjectAsync(Guid projectId)
+	{
+		return await _dbSet
+			.CountAsync(t => t.Column!.Board!.ProjectId == projectId);
+	}
 
-    public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(TaskStatus status)
+	public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(TaskStatus status)
     {
         return await _dbSet.CountAsync(t => t.Status == status);
     }
@@ -172,15 +176,18 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
         return await _dbSet.CountAsync(t => t.ColumnId == columnId);
     }
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> SearchTasksAsync(string searchTerm, Guid projectId)
-    {
-        var lowerSearchTerm = searchTerm.ToLower();
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.ProjectId == projectId && (
-                t.Title.ToLower().Contains(lowerSearchTerm) ||
-                t.Description.ToLower().Contains(lowerSearchTerm)))
-            .OrderBy(t => t.Priority)
-            .ToListAsync();
-    }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> SearchTasksAsync(string searchTerm, Guid projectId)
+	{
+		var lowerSearchTerm = searchTerm.ToLower();
+
+		return await _dbSet
+			.Include(t => t.Column)
+				.ThenInclude(c => c!.Board)
+			.Include(t => t.Assignments) 
+			.Where(t => t.Column!.Board!.ProjectId == projectId && (
+				t.Title.ToLower().Contains(lowerSearchTerm) ||
+				t.Description.ToLower().Contains(lowerSearchTerm)))
+			.OrderBy(t => t.Priority)
+			.ToListAsync();
+	}
 }

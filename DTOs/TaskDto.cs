@@ -18,10 +18,7 @@ public class CreateTaskDto
     [Required(ErrorMessage = "El tipo de tarea es requerido")]
     [RegexAttribute(@"^(BUG|FEATURE|TASK|IMPROVEMENT|SUBTASK)$", ErrorMessage = "Tipo de tarea inválido")]
     public string Type { get; set; } = "TASK";
-
-    [Required(ErrorMessage = "El ID del proyecto es requerido")]
-    public Guid ProjectId { get; set; }
-
+    
     [Required(ErrorMessage = "El ID de la columna es requerido")]
     public Guid ColumnId { get; set; }
 
@@ -86,7 +83,6 @@ public class TaskDto
     public string Type { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;
-    public Guid ProjectId { get; set; }
     public Guid ColumnId { get; set; }
     public List<Guid> AssignedUserIds { get; set; } = new();
 	public Guid? ParentTaskId { get; set; }

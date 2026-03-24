@@ -28,7 +28,6 @@ public class BugTaskFactory : ITaskFactory
             Description = description,
             Type = TaskType.BUG,
             Priority = TaskPriority.HIGH,
-            ProjectId = projectId,
             Status = TaskStatus.TODO
         };
     }
@@ -47,7 +46,6 @@ public class FeatureTaskFactory : ITaskFactory
             Description = description,
             Type = TaskType.FEATURE,
             Priority = TaskPriority.MEDIUM,
-            ProjectId = projectId,
             Status = TaskStatus.TODO
         };
     }
@@ -66,7 +64,6 @@ public class SimpleTaskFactory : ITaskFactory
             Description = description,
             Type = TaskType.TASK,
             Priority = TaskPriority.MEDIUM,
-            ProjectId = projectId,
             Status = TaskStatus.TODO
         };
     }
@@ -85,7 +82,6 @@ public class ImprovementTaskFactory : ITaskFactory
             Description = description,
             Type = TaskType.IMPROVEMENT,
             Priority = TaskPriority.LOW,
-            ProjectId = projectId,
             Status = TaskStatus.TODO
         };
     }

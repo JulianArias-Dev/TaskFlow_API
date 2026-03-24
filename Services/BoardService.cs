@@ -1,6 +1,7 @@
 using AutoMapper;
 using TaskFlow_API.DTOs;
 using TaskFlow_API.Models;
+using TaskFlow_API.Patterns.Builder;
 using TaskFlow_API.Repositories;
 
 namespace TaskFlow_API.Services;
@@ -61,9 +62,12 @@ public class BoardService : IBoardService
             throw new KeyNotFoundException($"Project with ID {createBoardDto.ProjectId} not found");
         }
 
-        var board = _mapper.Map<Board>(createBoardDto);
-        
-        await _unitOfWork.Boards.AddAsync(board);
+		var board = new BoardBuilder()
+		.WithBasicInfo(createBoardDto.Name, createBoardDto.Description ?? "", createBoardDto.ProjectId)
+		.WithDefaultColumns() 
+		.Build();
+
+		await _unitOfWork.Boards.AddAsync(board);
         await _unitOfWork.SaveChangesAsync();
         
         _logger.LogInformation("Board '{BoardName}' created for project {ProjectId}", board.Name, board.ProjectId);
