@@ -19,10 +19,7 @@ public class CreateColumnDto
     public int? WipLimit { get; set; }
 
     [RegexAttribute("^#[0-9A-Fa-f]{6}$", ErrorMessage = "El color debe ser un código hexadecimal válido")]
-    public string Color { get; set; } = "#ecf0f1";
-
-    [Range(0, int.MaxValue, ErrorMessage = "El orden de visualización no puede ser negativo")]
-    public int DisplayOrder { get; set; } = 0;
+    public string Color { get; set; } = "#ecf0f1";    
 }
 
 /// <summary>
