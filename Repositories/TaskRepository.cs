@@ -26,6 +26,8 @@ public interface ITaskRepository : IRepository<TaskEntity>
     System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(TaskStatus status);
     System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId);
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> SearchTasksAsync(string searchTerm, Guid projectId);
+    System.Threading.Tasks.Task<TaskEntity?> GetTaskWithAssignmentsAsync(Guid id);
+	System.Threading.Tasks.Task<TaskEntity?> GetByIdWithSubtasksAsync(Guid id);
 }
 
 /// <summary>
@@ -38,7 +40,15 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
     {
     }
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByProjectAsync(Guid projectId)
+	// En tu repositorio de tareas (TaskRepository):
+	public async Task<TaskEntity?> GetTaskWithAssignmentsAsync(Guid id)
+	{
+		return await _dbSet
+			.Include(t => t.Assignments) 
+			.FirstOrDefaultAsync(t => t.Id == id);
+	}
+
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByProjectAsync(Guid projectId)
     {
         return await _dbSet
             .Include(t => t.AssignedTo)
@@ -48,7 +58,14 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
             .ToListAsync();
     }
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByColumnAsync(Guid columnId)
+	public async System.Threading.Tasks.Task<TaskEntity?> GetByIdWithSubtasksAsync(Guid id)
+	{
+		return await _dbSet
+			.Include(t => t.SubTasks)
+			.FirstOrDefaultAsync(t => t.Id == id);
+	}
+
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByColumnAsync(Guid columnId)
     {
         return await _dbSet
             .Include(t => t.AssignedTo)
@@ -70,8 +87,8 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
     {
         return await _dbSet
             .Include(t => t.Column)
-            .Where(t => t.AssignedToUserId == userId)
-            .OrderBy(t => t.DueDate)
+			.Where(t => t.Assignments.Any(a => a.UserId == userId))
+			.OrderBy(t => t.DueDate)
             .ToListAsync();
     }
 

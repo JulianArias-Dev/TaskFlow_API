@@ -269,8 +269,8 @@ public class ProjectService : IProjectService
                         Title = t.Title,
                         Status = t.Status.ToString(),
                         Priority = t.Priority.ToString(),
-                        AssignedToUserId = t.AssignedToUserId,
-                        DueDate = t.DueDate
+						AssignedUserIds = t.Assignments?.Select(a => a.UserId).ToList() ?? new(),
+						DueDate = t.DueDate
 					}
                     ).ToList () ?? new()
 				}).ToList() ?? new()

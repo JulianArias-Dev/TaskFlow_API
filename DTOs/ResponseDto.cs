@@ -85,6 +85,11 @@ public class ResponseDto
 
     public static ResponseDto ValidationErrorResponse(List<string> errors)
         => new(false, "Errores de validación", errors, 400);
+
+	public static ResponseDto FailureResponse(string message)
+	{
+		return new ResponseDto { Success = false, Message = message };
+	}
 }
 
 /// <summary>

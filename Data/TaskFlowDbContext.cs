@@ -40,7 +40,7 @@ public class TaskFlowDbContext : DbContext
         modelBuilder.Entity<User>()
             .HasMany(u => u.AssignedTasks)
             .WithOne(t => t.AssignedTo)
-            .HasForeignKey(t => t.AssignedToUserId)
+            //.HasForeignKey(t => t.AssignedToUserId)
             .OnDelete(DeleteBehavior.SetNull);
         modelBuilder.Entity<User>()
             .HasMany(u => u.Comments)
@@ -53,8 +53,8 @@ public class TaskFlowDbContext : DbContext
             .HasForeignKey(pm => pm.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Project Configuration
-        modelBuilder.Entity<Project>()
+		// Project Configuration
+		modelBuilder.Entity<Project>()
             .HasKey(p => p.Id);
         modelBuilder.Entity<Project>()
             .HasMany(p => p.Boards)
@@ -124,8 +124,24 @@ public class TaskFlowDbContext : DbContext
             .HasForeignKey(tt => tt.TaskId)
             .OnDelete(DeleteBehavior.Cascade);
 
-        // Comment Configuration
-        modelBuilder.Entity<Comment>()
+		// Configuración de la relación N:M para Responsables
+		modelBuilder.Entity<TaskAssignment>()
+			.HasKey(ta => new { ta.TaskId, ta.UserId }); // Clave primaria compuesta
+
+		modelBuilder.Entity<TaskAssignment>()
+			.HasOne(ta => ta.Task)
+			.WithMany(t => t.Assignments)
+			.HasForeignKey(ta => ta.TaskId)
+			.OnDelete(DeleteBehavior.Cascade);
+
+		modelBuilder.Entity<TaskAssignment>()
+			.HasOne(ta => ta.User)
+			.WithMany() // O .WithMany(u => u.AssignedTasks) si añades la lista en User
+			.HasForeignKey(ta => ta.UserId)
+			.OnDelete(DeleteBehavior.Restrict);
+
+		// Comment Configuration
+		modelBuilder.Entity<Comment>()
             .HasKey(c => c.Id);
 
         // File Configuration

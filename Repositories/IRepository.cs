@@ -21,7 +21,7 @@ public interface IRepository<TEntity> where TEntity : class
     System.Threading.Tasks.Task DeleteRangeAsync(IEnumerable<TEntity> entities);
     System.Threading.Tasks.Task<bool> ExistsAsync(Guid id);
     System.Threading.Tasks.Task<int> CountAsync();
-    System.Threading.Tasks.Task SaveChangesAsync();
+    System.Threading.Tasks.Task SaveChangesAsync();    
 }
 
 /// <summary>
@@ -54,7 +54,7 @@ public class Repository<TEntity> : IRepository<TEntity> where TEntity : class
         return await System.Threading.Tasks.Task.FromResult(_dbSet.Where(predicate).ToList());
     }
 
-    public async System.Threading.Tasks.Task<(List<TEntity> items, int totalCount)> GetPagedAsync(int pageNumber, int pageSize)
+	public async System.Threading.Tasks.Task<(List<TEntity> items, int totalCount)> GetPagedAsync(int pageNumber, int pageSize)
     {
         var totalCount = await _dbSet.CountAsync();
         var items = await _dbSet

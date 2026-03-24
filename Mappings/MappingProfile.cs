@@ -109,8 +109,10 @@ public class MappingProfile : Profile
                 Title = t.Title,
                 Status = t.Status.ToString(),
                 Priority = t.Priority.ToString(),
-                AssignedToUserId = t.AssignedToUserId,
-                DueDate = t.DueDate
+				AssignedUserIds = t.Assignments != null
+			        ? t.Assignments.Select(a => a.UserId).ToList()
+			        : new List<Guid>(),
+				DueDate = t.DueDate
             })));
 
         CreateMap<CreateColumnDto, Column>()

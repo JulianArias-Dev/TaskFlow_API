@@ -50,7 +50,7 @@ public class TaskService : ITaskService
 
     public async System.Threading.Tasks.Task<TaskDto?> GetTaskByIdAsync(Guid id)
     {
-        var task = await _unitOfWork.Tasks.GetByIdAsync(id);
+        var task = await _unitOfWork.Tasks.GetTaskWithAssignmentsAsync(id);
         return task != null ? MapToDto(task) : null;
     }
 
@@ -101,20 +101,33 @@ public class TaskService : ITaskService
             priority = TaskPriority.MEDIUM;
         }
 
-        var task = new TaskEntity
-        {
-            Title = createTaskDto.Title,
-            Description = createTaskDto.Description,
-            Type = taskType,
-            Priority = priority,
+		var task = new TaskEntity
+		{
+			Title = createTaskDto.Title,
+			Description = createTaskDto.Description ?? "",
+			Type = taskType,
+			Priority = priority,
             ProjectId = createTaskDto.ProjectId,
-            AssignedToUserId = createTaskDto.AssignedToUserId,
-            DueDate = createTaskDto.DueDate,
-            EstimatedHours = createTaskDto.EstimatedHours,
-            Tags = createTaskDto.Tags ?? new List<string>()
-        };
+            ColumnId = createTaskDto.ColumnId,
+			DueDate = createTaskDto.DueDate,
+			EstimatedHours = createTaskDto.EstimatedHours,
+			Tags = createTaskDto.Tags ?? new List<string>(),
+			Assignments = new List<TaskAssignment>(),
+            ParentTaskId = createTaskDto.ParentTaskId ?? null             
+		};
 
-        await _unitOfWork.Tasks.AddAsync(task);
+		// Si el DTO trae un responsable (o varios, si cambias el DTO a una lista)
+		if (createTaskDto.AssignedToUserId.HasValue)
+		{
+			task.Assignments.Add(new TaskAssignment
+			{
+				TaskId = task.Id,
+				UserId = createTaskDto.AssignedToUserId.Value,
+				AssignedAt = DateTime.UtcNow
+			});
+		}
+
+		await _unitOfWork.Tasks.AddAsync(task);
         await _unitOfWork.SaveChangesAsync();
 
         return MapToDto(task);
@@ -136,8 +149,8 @@ public class TaskService : ITaskService
 
     public async System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto)
     {
-        var task = await _unitOfWork.Tasks.GetByIdAsync(id);
-        if (task == null)
+		var task = await _unitOfWork.Tasks.GetTaskWithAssignmentsAsync(id);
+		if (task == null)
         {
             throw new KeyNotFoundException($"Task with ID {id} not found");
         }
@@ -156,14 +169,38 @@ public class TaskService : ITaskService
             System.Enum.TryParse<TaskPriority>(updateTaskDto.Priority, true, out var priority))
             task.Priority = priority;
 
-        if (updateTaskDto.AssignedToUserId.HasValue)
-            task.AssignedToUserId = updateTaskDto.AssignedToUserId;
+		if (updateTaskDto.AssignedUserIds != null)
+		{
+			// Aseguramos que la colección esté inicializada
+			task.Assignments ??= new List<TaskAssignment>();
 
-        if (updateTaskDto.DueDate.HasValue)
+			// Limpiamos todas las asignaciones actuales
+			task.Assignments.Clear();
+
+			// Agregamos los nuevos IDs recibidos en la lista
+			foreach (var userId in updateTaskDto.AssignedUserIds)
+			{
+				// Validar que el userId no sea Guid.Empty antes de agregar
+				if (userId != Guid.Empty)
+				{
+					task.Assignments.Add(new TaskAssignment
+					{
+						TaskId = task.Id,
+						UserId = userId,
+						AssignedAt = DateTime.UtcNow
+					});
+				}
+			}
+		}
+
+		if (updateTaskDto.DueDate.HasValue)
             task.DueDate = updateTaskDto.DueDate;
 
         if (updateTaskDto.EstimatedHours.HasValue)
             task.EstimatedHours = updateTaskDto.EstimatedHours.Value;
+
+        if (updateTaskDto.ActualHours.HasValue)
+            task.ActualHours = updateTaskDto.ActualHours.Value;
 
         if (updateTaskDto.Tags != null)
             task.Tags = updateTaskDto.Tags;
@@ -176,20 +213,28 @@ public class TaskService : ITaskService
         return MapToDto(task);
     }
 
-    public async System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id)
-    {
-        var task = await _unitOfWork.Tasks.GetByIdAsync(id);
-        if (task == null)
-        {
-            return false;
-        }
+	public async System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id)
+	{
+		// Cargamos la tarea incluyendo sus subtareas para verificar
+		var task = await _unitOfWork.Tasks.GetByIdWithSubtasksAsync(id);
 
-        await _unitOfWork.Tasks.DeleteAsync(id);
-        await _unitOfWork.SaveChangesAsync();
-        return true;
-    }
+		if (task == null) return false;
 
-    public async System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId)
+		// Si tiene subtareas, lanzamos una excepción de negocio
+		if (task.SubTasks != null && task.SubTasks.Any())
+		{
+			throw new InvalidOperationException(
+				$"No se puede eliminar la tarea '{task.Title}' porque tiene {task.SubTasks.Count} subtareas asociadas. Elimina o mueve las subtareas primero.");
+		}
+
+		// Si llegamos aquí, es seguro borrar
+		await _unitOfWork.Tasks.DeleteAsync(id);
+		await _unitOfWork.SaveChangesAsync();
+
+		return true;
+	}
+
+	public async System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId)
     {
         var originalTask = await _unitOfWork.Tasks.GetByIdAsync(taskId);
         if (originalTask == null)
@@ -230,11 +275,12 @@ public class TaskService : ITaskService
             Status = task.Status.ToString(),
             Priority = task.Priority.ToString(),
             ProjectId = task.ProjectId,
-            AssignedToUserId = task.AssignedToUserId,
-            CreatedAt = task.CreatedAt,
+			AssignedUserIds = task.Assignments?.Select(a => a.UserId).ToList() ?? new List<Guid>(),
+			CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             DueDate = task.DueDate,
             EstimatedHours = task.EstimatedHours,
+            ActualHours = task.ActualHours,
             Tags = task.Tags
         };
     }

@@ -190,28 +190,49 @@ public class TasksController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Elimina una tarea
-    /// </summary>
-    [HttpDelete("{id}")]
-    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
-    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ResponseDto>> DeleteTask(Guid id)
-    {
-        var result = await _taskService.DeleteTaskAsync(id);
-        if (!result)
-        {
-            _logger.LogWarning("Task with ID {TaskId} not found for deletion", id);
-            return NotFound(ResponseDto.NotFoundResponse($"Task with ID {id} not found"));
-        }
-        _logger.LogInformation("Task {TaskId} deleted successfully", id);
-        return Ok(ResponseDto.SuccessResponse("Task deleted successfully"));
-    }
+	//// <summary>
+	/// Elimina una tarea
+	/// </summary>
+	[HttpDelete("{id}")]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)] // Agregamos este tipo de respuesta
+	public async Task<ActionResult<ResponseDto>> DeleteTask(Guid id)
+	{
+		try
+		{
+			var result = await _taskService.DeleteTaskAsync(id);
 
-    /// <summary>
-    /// Clona una tarea (Patrón Prototype)
-    /// </summary>
-    [HttpPost("{taskId}/clone")]
+			if (!result)
+			{
+				_logger.LogWarning("Task with ID {TaskId} not found for deletion", id);
+				return NotFound(ResponseDto.NotFoundResponse($"Task with ID {id} not found"));
+			}
+
+			_logger.LogInformation("Task {TaskId} deleted successfully", id);
+			return Ok(ResponseDto.SuccessResponse("Task deleted successfully"));
+		}
+		catch (InvalidOperationException ex)
+		{
+			// Capturamos el error de lógica de negocio (ej. "Tiene subtareas")
+			_logger.LogWarning(ex, "Conflict deleting task {TaskId}: {Message}", id, ex.Message);
+
+			// Devolvemos un 400 o 409 con el mensaje que definimos en el Service
+			return BadRequest(ResponseDto.FailureResponse(ex.Message));
+		}
+		catch (Exception ex)
+		{
+			// Capturamos errores inesperados (DB, Conexión, etc.)
+			_logger.LogError(ex, "Unexpected error deleting task {TaskId}", id);
+			return StatusCode(StatusCodes.Status500InternalServerError,
+				ResponseDto.FailureResponse("Ocurrió un error inesperado al eliminar la tarea."));
+		}
+	}
+
+	/// <summary>
+	/// Clona una tarea (Patrón Prototype)
+	/// </summary>
+	[HttpPost("{taskId}/clone")]
     [ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
     public async Task<ActionResult<ResponseDto<TaskDto>>> CloneTask(Guid taskId)

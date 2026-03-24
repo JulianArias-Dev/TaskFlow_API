@@ -52,8 +52,13 @@ public class TaskPrototype : TaskEntity, IPrototype
                 Priority = this.Priority,
                 ProjectId = this.ProjectId,
                 ColumnId = this.ColumnId,
-                AssignedToUserId = this.AssignedToUserId,
-                CreatedAt = DateTime.UtcNow,
+				Assignments = this.Assignments?.Select(a => new TaskAssignment
+				{
+					UserId = a.UserId,
+					TaskId = Guid.Empty, // Se asignará al guardar la nueva tarea
+					AssignedAt = DateTime.UtcNow
+				}).ToList() ?? new List<TaskAssignment>(),
+				CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DueDate = this.DueDate,
                 EstimatedHours = this.EstimatedHours,

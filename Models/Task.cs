@@ -26,6 +26,17 @@ public enum TaskPriority
     CRITICAL = 4
 }
 
+public class TaskAssignment
+{
+	public Guid TaskId { get; set; }
+	public Task? Task { get; set; }
+
+	public Guid UserId { get; set; }
+	public User? User { get; set; }
+
+	public DateTime AssignedAt { get; set; } = DateTime.UtcNow;
+}
+
 public class Task : ICloneable
 {
     public Guid Id { get; set; } = Guid.NewGuid();
@@ -38,7 +49,7 @@ public class Task : ICloneable
     // Foreign Keys
     public Guid ProjectId { get; set; }
     public Guid ColumnId { get; set; }
-    public Guid? AssignedToUserId { get; set; }
+    //public Guid? AssignedToUserId { get; set; }
     public Guid? ParentTaskId { get; set; } // Para tareas recursivas/subtareas
 
     // Metadata
@@ -60,9 +71,10 @@ public class Task : ICloneable
     
     // Relaciones N:M
     public List<TaskTag> TaskTags { get; set; } = new();
-    
-    // One-to-Many
-    public List<Comment> Comments { get; set; } = new();
+	public List<TaskAssignment> Assignments { get; set; } = new();
+
+	// One-to-Many
+	public List<Comment> Comments { get; set; } = new();
     public List<File> Files { get; set; } = new();
 
     public object Clone()
@@ -77,8 +89,9 @@ public class Task : ICloneable
             Priority = this.Priority,
             ProjectId = this.ProjectId,
             ColumnId = this.ColumnId,
-            AssignedToUserId = this.AssignedToUserId,
-            ParentTaskId = null, // No heredar relación padre en clonado
+			//AssignedToUserId = this.AssignedToUserId,
+			Assignments = new List<TaskAssignment>(),
+			ParentTaskId = null, // No heredar relación padre en clonado
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             DueDate = this.DueDate,

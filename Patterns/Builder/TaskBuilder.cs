@@ -56,13 +56,38 @@ public class TaskBuilder
         return this;
     }
 
-    public TaskBuilder WithAssignee(Guid userId)
-    {
-        _task.AssignedToUserId = userId;
-        return this;
-    }
+	//public TaskBuilder WithAssignee(Guid userId)
+	//{
+	//    _task.AssignedToUserId = userId;
+	//    return this;
+	//}
 
-    public TaskBuilder WithEstimatedHours(int hours)
+	public TaskBuilder WithAssignee(Guid userId)
+	{
+		// Evitamos duplicados si se llama al mismo ID dos veces
+		if (!_task.Assignments.Any(a => a.UserId == userId))
+		{
+			_task.Assignments.Add(new TaskAssignment
+			{
+				TaskId = _task.Id,
+				UserId = userId,
+				AssignedAt = DateTime.UtcNow
+			});
+		}
+		return this;
+	}
+
+	// Opcional: Permitir una lista de golpe
+	public TaskBuilder WithAssignees(IEnumerable<Guid> userIds)
+	{
+		foreach (var id in userIds)
+		{
+			WithAssignee(id);
+		}
+		return this;
+	}
+
+	public TaskBuilder WithEstimatedHours(int hours)
     {
         _task.EstimatedHours = hours;
         return this;

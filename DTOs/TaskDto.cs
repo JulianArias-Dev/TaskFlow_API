@@ -52,15 +52,18 @@ public class UpdateTaskDto
     [StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
     public string? Description { get; set; }
 
+	[RegexAttribute(@"^(BUG|FEATURE|TASK|IMPROVEMENT|SUBTASK)$", ErrorMessage = "Tipo de tarea inválido")]
+	public string? Type { get; set; }
+
     [RegexAttribute(@"^(TODO|IN_PROGRESS|IN_REVIEW|DONE|BLOCKED)$", ErrorMessage = "Estado inválido")]
     public string? Status { get; set; }
 
     [RegexAttribute(@"^(LOW|MEDIUM|HIGH|CRITICAL)$", ErrorMessage = "Prioridad inválida")]
     public string? Priority { get; set; }
 
-    public Guid? AssignedToUserId { get; set; }
+	public List<Guid>? AssignedUserIds { get; set; }
 
-    [DataType(DataType.DateTime)]
+	[DataType(DataType.DateTime)]
     public DateTime? DueDate { get; set; }
 
     [Range(0, 999, ErrorMessage = "Las horas estimadas no pueden ser negativas")]
@@ -85,8 +88,8 @@ public class TaskDto
     public string Priority { get; set; } = string.Empty;
     public Guid ProjectId { get; set; }
     public Guid ColumnId { get; set; }
-    public Guid? AssignedToUserId { get; set; }
-    public Guid? ParentTaskId { get; set; }
+    public List<Guid> AssignedUserIds { get; set; } = new();
+	public Guid? ParentTaskId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? DueDate { get; set; }
@@ -107,6 +110,6 @@ public class TaskSimpleDto
     public string Title { get; set; } = string.Empty;
     public string Status { get; set; } = string.Empty;
     public string Priority { get; set; } = string.Empty;
-    public Guid? AssignedToUserId { get; set; }
+    public List<Guid> AssignedUserIds { get; set; } = new();
     public DateTime? DueDate { get; set; }
 }
