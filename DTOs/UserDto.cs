@@ -1,0 +1,116 @@
+using System.ComponentModel.DataAnnotations;
+using TaskFlow_API.Validations;
+
+namespace TaskFlow_API.DTOs;
+
+/// <summary>
+/// DTO para crear un nuevo usuario
+/// </summary>
+public class CreateUserDto
+{
+    [Required(ErrorMessage = "El email es requerido")]
+    [EmailAddress(ErrorMessage = "El formato del email es inválido")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "El nombre es requerido")]
+    [StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
+    public string Name { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "La contraseña es requerida")]
+    [StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
+    [RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+        ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
+    public string Password { get; set; } = string.Empty;
+
+    [Url(ErrorMessage = "La URL del avatar es inválida")]
+    public string? AvatarUrl { get; set; }
+
+    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
+    public string Role { get; set; } = "Developer";
+}
+
+/// <summary>
+/// DTO para actualizar un usuario existente
+/// </summary>
+public class UpdateUserDto
+{
+    [StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
+    public string? Name { get; set; }
+
+    [Url(ErrorMessage = "La URL del avatar es inválida")]
+    public string? AvatarUrl { get; set; }
+
+    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
+    public string? Role { get; set; }
+}
+
+/// <summary>
+/// DTO para cambiar contraseña
+/// </summary>
+public class ChangePasswordDto
+{
+    [Required(ErrorMessage = "La contraseña actual es requerida")]
+    public string CurrentPassword { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "La nueva contraseña es requerida")]
+    [StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
+    [RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
+        ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
+    public string NewPassword { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO para respuesta de usuario completo
+/// </summary>
+public class UserDto
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string? AvatarUrl { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public bool IsActive { get; set; }
+    public int ProjectCount { get; set; } = 0;
+    public int TaskCount { get; set; } = 0;
+}
+
+/// <summary>
+/// DTO para respuesta simplificada de usuario
+/// </summary>
+public class UserSimpleDto
+{
+    public Guid Id { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? AvatarUrl { get; set; }
+    public string Role { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO para login
+/// </summary>
+public class LoginDto
+{
+    [Required(ErrorMessage = "El email es requerido")]
+    [EmailAddress(ErrorMessage = "El formato del email es inválido")]
+    public string Email { get; set; } = string.Empty;
+
+    [Required(ErrorMessage = "La contraseña es requerida")]
+    public string Password { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// DTO para respuesta de login (con token)
+/// </summary>
+public class LoginResponseDto
+{
+    public Guid UserId { get; set; }
+    public string Email { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string Role { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+}
