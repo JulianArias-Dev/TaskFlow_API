@@ -19,8 +19,9 @@ public interface IUnitOfWork : IDisposable
     ITaskTagRepository TaskTags { get; }
     IProjectMemberRepository ProjectMembers { get; }
     IAuditLogRepository AuditLogs { get; }
+	INotificationRepository Notifications { get; }
 
-    System.Threading.Tasks.Task<int> SaveChangesAsync();
+	System.Threading.Tasks.Task<int> SaveChangesAsync();
     System.Threading.Tasks.Task<bool> BeginTransactionAsync();
     System.Threading.Tasks.Task<bool> CommitTransactionAsync();
     System.Threading.Tasks.Task<bool> RollbackTransactionAsync();
@@ -45,8 +46,9 @@ public class UnitOfWork : IUnitOfWork
     private ITaskTagRepository? _taskTagRepository;
     private IProjectMemberRepository? _projectMemberRepository;
     private IAuditLogRepository? _auditLogRepository;
+	private INotificationRepository? _notifications;
 
-    public UnitOfWork(TaskFlowDbContext context)
+	public UnitOfWork(TaskFlowDbContext context)
     {
         _context = context;
     }
@@ -62,8 +64,9 @@ public class UnitOfWork : IUnitOfWork
     public ITaskTagRepository TaskTags => _taskTagRepository ??= new TaskTagRepository(_context);
     public IProjectMemberRepository ProjectMembers => _projectMemberRepository ??= new ProjectMemberRepository(_context);
     public IAuditLogRepository AuditLogs => _auditLogRepository ??= new AuditLogRepository(_context);
+	public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
 
-    public async System.Threading.Tasks.Task<int> SaveChangesAsync()
+	public async System.Threading.Tasks.Task<int> SaveChangesAsync()
     {
         return await _context.SaveChangesAsync();
     }

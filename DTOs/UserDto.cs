@@ -25,7 +25,7 @@ public class CreateUserDto
     [Url(ErrorMessage = "La URL del avatar es inválida")]
     public string? AvatarUrl { get; set; }
 
-    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
+    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer|CommonUser)$", ErrorMessage = "Rol de usuario inválido")]
     public string Role { get; set; } = "Developer";
 }
 

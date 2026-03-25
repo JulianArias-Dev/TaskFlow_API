@@ -34,11 +34,13 @@ public interface IProjectService
 public class ProjectService : IProjectService
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
 
-    public ProjectService(IUnitOfWork unitOfWork)
+	public ProjectService(IUnitOfWork unitOfWork)
     {
         _unitOfWork = unitOfWork;
-    }
+        _notificationService = new NotificationService(unitOfWork, new ConfigurationBuilder().AddJsonFile("appsettings.json").Build());
+	}
 
     public async System.Threading.Tasks.Task<ProjectDto?> GetProjectByIdAsync(Guid id)
     {
@@ -162,12 +164,23 @@ public class ProjectService : IProjectService
         }
 
         var isMember = await _unitOfWork.Projects.IsMemberAsync(projectId, userId);
-        if (!isMember)
-        {
-            await _unitOfWork.Projects.AddMemberAsync(projectId, userId, role);
-        }
 
-        return true;
+		if (!isMember)
+		{
+			await _unitOfWork.Projects.AddMemberAsync(projectId, userId, role);
+			await _unitOfWork.SaveChangesAsync(); // Asegurar que se guarde antes de notificar
+
+			// Notificación de Invitación
+			string subject = $"Has sido invitado al proyecto: {project.Name}";
+			string content = $@"
+            <h3>¡Hola, {user.Name}!</h3>
+            <p>Has sido agregado al proyecto <strong>{project.Name}</strong> con el rol de <strong>{role}</strong>.</p>
+            <p>Ya puedes empezar a colaborar con el equipo.</p>";
+
+			await _notificationService.NotifyAsync(userId, subject, content);
+		}
+
+		return true;
     }
 
     public async System.Threading.Tasks.Task<bool> RemoveMemberAsync(Guid projectId, Guid userId)

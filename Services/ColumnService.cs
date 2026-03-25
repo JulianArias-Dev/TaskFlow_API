@@ -55,23 +55,28 @@ public class ColumnService : IColumnService
         return (mappedItems, totalCount);
     }
 
-    public async System.Threading.Tasks.Task<ColumnDto> CreateColumnAsync(CreateColumnDto createColumnDto)
-    {
-        if (!await _unitOfWork.Boards.ExistsAsync(createColumnDto.BoardId))
-        {
-            throw new KeyNotFoundException($"Board with ID {createColumnDto.BoardId} not found");
-        }
+	public async System.Threading.Tasks.Task<ColumnDto> CreateColumnAsync(CreateColumnDto createColumnDto)
+	{
+		var board = await _unitOfWork.Boards.GetByIdAsync(createColumnDto.BoardId);
+		if (board == null)
+		{
+			throw new KeyNotFoundException($"Board with ID {createColumnDto.BoardId} not found");
+		}
 
-        var column = _mapper.Map<Column>(createColumnDto);
-        
-        await _unitOfWork.Columns.AddAsync(column);
-        await _unitOfWork.SaveChangesAsync();
+		// Calculamos el siguiente DisplayOrder
+		var existingColumns = await _unitOfWork.Columns.FindAsync(c => c.BoardId == createColumnDto.BoardId);
+		int nextOrder = existingColumns.Any() ? existingColumns.Max(c => c.DisplayOrder) + 1 : 0;
 
-        _logger.LogInformation("Column '{ColumnName}' created for board {BoardId}", column.Name, column.BoardId);
-        return _mapper.Map<ColumnDto>(column);
-    }
+		var column = _mapper.Map<Column>(createColumnDto);
+		column.DisplayOrder = nextOrder; // Forzamos que vaya al final
 
-    public async System.Threading.Tasks.Task<ColumnDto> UpdateColumnAsync(Guid id, UpdateColumnDto updateColumnDto)
+		await _unitOfWork.Columns.AddAsync(column);
+		await _unitOfWork.SaveChangesAsync();
+
+		return _mapper.Map<ColumnDto>(column);
+	}
+
+	public async System.Threading.Tasks.Task<ColumnDto> UpdateColumnAsync(Guid id, UpdateColumnDto updateColumnDto)
     {
         var column = await _unitOfWork.Columns.GetByIdAsync(id);
         if (column == null)
@@ -79,7 +84,32 @@ public class ColumnService : IColumnService
             throw new KeyNotFoundException($"Column with ID {id} not found");
         }
 
-        if (!string.IsNullOrEmpty(updateColumnDto.Name))
+		if (updateColumnDto.DisplayOrder.HasValue && updateColumnDto.DisplayOrder.Value != column.DisplayOrder)
+		{
+			var allColumns = (await _unitOfWork.Columns.FindAsync(c => c.BoardId == column.BoardId))
+							 .OrderBy(c => c.DisplayOrder).ToList();
+
+			int oldOrder = column.DisplayOrder;
+			int newOrder = updateColumnDto.DisplayOrder.Value;
+
+			// Ajustamos los órdenes de las DEMÁS columnas
+			foreach (var col in allColumns.Where(c => c.Id != id))
+			{
+				if (newOrder < oldOrder) // Se movió hacia arriba
+				{
+					if (col.DisplayOrder >= newOrder && col.DisplayOrder < oldOrder)
+						col.DisplayOrder++;
+				}
+				else // Se movió hacia abajo
+				{
+					if (col.DisplayOrder > oldOrder && col.DisplayOrder <= newOrder)
+						col.DisplayOrder--;
+				}
+			}
+			column.DisplayOrder = newOrder;
+		}
+
+		if (!string.IsNullOrEmpty(updateColumnDto.Name))
             column.Name = updateColumnDto.Name;
 
         if (updateColumnDto.WipLimit.HasValue)
@@ -100,30 +130,33 @@ public class ColumnService : IColumnService
         return _mapper.Map<ColumnDto>(column);
     }
 
-    public async System.Threading.Tasks.Task<bool> DeleteColumnAsync(Guid id)
-    {
-        var column = await _unitOfWork.Columns.GetByIdAsync(id);
-        if (column == null)
-        {
-            return false;
-        }
+	public async System.Threading.Tasks.Task<bool> DeleteColumnAsync(Guid id)
+	{
+		var column = await _unitOfWork.Columns.GetByIdAsync(id);
+		if (column == null) return false;
 
-        // Verificar si hay tareas en la columna
-        var taskCount = await _unitOfWork.Columns.GetTaskCountByColumnAsync(id);
-        if (taskCount > 0)
-        {
-            _logger.LogWarning("Cannot delete column {ColumnId} - contains {TaskCount} tasks", id, taskCount);
-            throw new InvalidOperationException($"Cannot delete column with {taskCount} tasks. Please move or delete tasks first.");
-        }
+		// Validación de tareas (la que ya tenías)
+		var taskCount = await _unitOfWork.Columns.GetTaskCountByColumnAsync(id);
+		if (taskCount > 0) throw new InvalidOperationException("Mueva las tareas antes de eliminar.");
 
-        await _unitOfWork.Columns.DeleteAsync(id);
-        await _unitOfWork.SaveChangesAsync();
+		int removedOrder = column.DisplayOrder;
+		Guid boardId = column.BoardId;
 
-        _logger.LogInformation("Column {ColumnId} deleted", id);
-        return true;
-    }
+		await _unitOfWork.Columns.DeleteAsync(id);
 
-    public async System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId)
+		// REORGANIZAR: Traemos las que quedaron con un orden mayor al eliminado
+		var affectedColumns = await _unitOfWork.Columns.FindAsync(c => c.BoardId == boardId && c.DisplayOrder > removedOrder);
+
+		foreach (var col in affectedColumns)
+		{
+			col.DisplayOrder--; // Cerramos el hueco
+		}
+
+		await _unitOfWork.SaveChangesAsync();
+		return true;
+	}
+
+	public async System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId)
     {
         return await _unitOfWork.Columns.GetTaskCountByColumnAsync(columnId);
     }

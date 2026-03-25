@@ -17,9 +17,10 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.Developer;
     public string? AvatarUrl { get; set; }
-    
-    // Metadata
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public bool AllowEmail { get; set; } = true; 
+
+	// Metadata
+	public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? LastLoginAt { get; set; }
     public bool IsActive { get; set; } = true;
@@ -28,8 +29,9 @@ public class User
     public List<Project> OwnedProjects { get; set; } = new(); // Proyectos que el usuario posee
     public List<Task> AssignedTasks { get; set; } = new(); // Tareas asignadas
     public List<Comment> Comments { get; set; } = new();
-    
-    // Relación Many-to-Many con Project (miembros de proyecto)
-    public List<ProjectMember> ProjectMemberships { get; set; } = new();
+	public List<Notification> Notifications { get; set; } = new(); // Notificaciones del usuario
+
+	// Relación Many-to-Many con Project (miembros de proyecto)
+	public List<ProjectMember> ProjectMemberships { get; set; } = new();
 }
 

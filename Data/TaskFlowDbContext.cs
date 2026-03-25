@@ -21,8 +21,9 @@ public class TaskFlowDbContext : DbContext
     public DbSet<TaskTag> TaskTags { get; set; } = null!;
     public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
+    public DbSet<Notification> Notifications { get; set; } = null!;
 
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
+	protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
 
@@ -52,6 +53,11 @@ public class TaskFlowDbContext : DbContext
             .WithOne(pm => pm.User)
             .HasForeignKey(pm => pm.UserId)
             .OnDelete(DeleteBehavior.Cascade);
+		modelBuilder.Entity<User>(entity =>
+		{
+			entity.Property(u => u.AllowEmail)
+				  .HasDefaultValue(true);
+		});
 
 		// Project Configuration
 		modelBuilder.Entity<Project>()
@@ -189,6 +195,29 @@ public class TaskFlowDbContext : DbContext
             .HasIndex(al => al.EntityId);
         modelBuilder.Entity<AuditLog>()
             .HasIndex(al => al.CreatedAt);
-    }
+
+		modelBuilder.Entity<Notification>(entity =>
+		{
+			entity.ToTable("Notifications");
+			entity.HasKey(n => n.Id);
+
+			entity.Property(n => n.Subject)
+				  .IsRequired()
+				  .HasMaxLength(200);
+
+			entity.Property(n => n.Content)
+				  .IsRequired();
+
+			entity.Property(n => n.CreatedAt)
+				  .HasDefaultValueSql("GETUTCDATE()");
+
+			// Relación Uno a Muchos (Un usuario tiene muchas notificaciones)
+			entity.HasOne(n => n.User)
+				  .WithMany(u => u.Notifications)
+				  .HasForeignKey(n => n.UserId)
+				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el usuario, se borran sus notificaciones
+		});
+
+	}
 }
 
