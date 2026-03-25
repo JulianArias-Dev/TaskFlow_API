@@ -35,30 +35,6 @@ builder.Services.AddDbContext<TaskFlowDbContext>(options =>
 builder.Services.AddHealthChecks()
 	.AddDbContextCheck<TaskFlowDbContext>("Database"); // .NET ya sabe cómo probar el DbContext solo
 
-//builder.Services.AddHealthChecks()
-//    .AddCheck("Database", () =>
-//    {
-//        try
-//        {
-//            var dbContext = builder.Services.BuildServiceProvider().GetRequiredService<TaskFlowDbContext>();
-//            if (dbContext.Database.CanConnect())
-//            {
-//                return new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult(
-//                    Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Healthy, 
-//                    "Database connected");
-//            }
-//            return new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult(
-//                Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, 
-//                "Cannot connect to database");
-//        }
-//        catch
-//        {
-//            return new Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult(
-//                Microsoft.Extensions.Diagnostics.HealthChecks.HealthStatus.Unhealthy, 
-//                "Database error");
-//        }
-//    });
-
 // AutoMapper Configuration
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
@@ -74,6 +50,7 @@ builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<ITaskTagRepository, TaskTagRepository>();
 builder.Services.AddScoped<IProjectMemberRepository, ProjectMemberRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
+builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
 // Register Services
@@ -88,6 +65,7 @@ builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IAuditLogService, AuditLogService>();
 builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
