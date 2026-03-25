@@ -192,7 +192,7 @@ public class ProjectsController : ControllerBase
     {
         try
         {
-            var result = await _projectService.AddMemberAsync(projectId, userId);
+            var result = await _projectService.AddMemberAsync(projectId, userId, 3);
             if (!result)
             {
                 _logger.LogWarning("Failed to add member {UserId} to project {ProjectId}", userId, projectId);

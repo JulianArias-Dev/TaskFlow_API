@@ -1,11 +1,21 @@
 ﻿using MailKit.Net.Smtp;
 using MailKit.Security;
+using Microsoft.Extensions.Options;
 using MimeKit;
 using TaskFlow_API.Models;
 using TaskFlow_API.Repositories;
 
 namespace TaskFlow_API.Services
 {
+	public class EmailSettings
+	{
+		public required string From { get; set; }
+		public required string SmtpServer { get; set; }
+		public required string Port { get; set; }
+		public required string Username { get; set; }
+		public required string Password { get; set; }
+	}
+
 	public interface INotificationService
 	{
 		System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content);
@@ -14,12 +24,13 @@ namespace TaskFlow_API.Services
 	public class NotificationService : INotificationService
 	{
 		private readonly IUnitOfWork _unitOfWork;
-		private readonly IConfiguration _config;
+		//private readonly IConfiguration _config;
+		private readonly EmailSettings _emailSettings;
 
-		public NotificationService(IUnitOfWork unitOfWork, IConfiguration config)
+		public NotificationService(IUnitOfWork unitOfWork, IOptions<EmailSettings> emailOptions)
 		{
 			_unitOfWork = unitOfWork;
-			_config = config;
+			_emailSettings = emailOptions.Value;
 		}
 
 		public async System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content)
@@ -46,14 +57,12 @@ namespace TaskFlow_API.Services
 
 		private async System.Threading.Tasks.Task SendEmailAsync(string targetEmail, string subject, string content)
 		{
-			var emailSettings = _config.GetSection("EmailSettings");
-
 			// Si faltan datos de configuración, lanzamos una excepción clara
-			string fromEmail = emailSettings["From"] ?? throw new InvalidOperationException("Configuración 'From' no encontrada.");
-			string smtpServer = emailSettings["SmtpServer"] ?? throw new InvalidOperationException("Configuración 'SmtpServer' no encontrada.");
+			string fromEmail = _emailSettings.From ?? throw new InvalidOperationException("Configuración 'From' no encontrada.");
+			string smtpServer = _emailSettings.SmtpServer ?? throw new InvalidOperationException("Configuración 'SmtpServer' no encontrada.");
 
 			var message = new MimeMessage();
-			message.From.Add(MailboxAddress.Parse(emailSettings["From"])); // ¡Usa Parse!
+			message.From.Add(MailboxAddress.Parse(_emailSettings.From)); // ¡Usa Parse!
 			message.To.Add(new MailboxAddress("", targetEmail));
 			message.Subject = subject;
 			message.Body = new TextPart("html") { Text = content };
@@ -61,8 +70,8 @@ namespace TaskFlow_API.Services
 			using var client = new SmtpClient();
 
 			// Dejamos que estas llamadas lancen excepciones si fallan
-			await client.ConnectAsync(smtpServer, int.Parse(emailSettings["Port"] ?? "465"), true);
-			await client.AuthenticateAsync(emailSettings["Username"], emailSettings["Password"]);
+			await client.ConnectAsync(smtpServer, int.Parse(_emailSettings.Port ?? "465"), true);
+			await client.AuthenticateAsync(_emailSettings.Username, _emailSettings.Password);
 			await client.SendAsync(message);
 			await client.DisconnectAsync(true);
 		}

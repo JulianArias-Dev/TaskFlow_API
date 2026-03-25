@@ -14,8 +14,8 @@ public interface IProjectRepository : IRepository<Project>
     System.Threading.Tasks.Task<IEnumerable<Project>> GetProjectsByMemberAsync(Guid userId);
     System.Threading.Tasks.Task<Project?> GetProjectWithTasksAsync(Guid projectId);
     System.Threading.Tasks.Task<int> GetProjectCountByOwnerAsync(Guid ownerId);
-    System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid userId, UserRole role = UserRole.Developer);
-    System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid userId);
+	System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid userId, int projectRoleId);
+	System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid userId);
     System.Threading.Tasks.Task<bool> IsMemberAsync(Guid projectId, Guid userId);
     System.Threading.Tasks.Task<IEnumerable<Project>> GetAllProjectsWithTasksAsync();
 }
@@ -62,23 +62,26 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
         return await _dbSet.CountAsync(p => p.OwnerId == ownerId);
     }
 
-    public async System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid userId, UserRole role = UserRole.Developer)
-    {
-        var project = await GetByIdAsync(projectId);
-        if (project != null)
-        {
-            var projectMember = new ProjectMember
-            {
-                ProjectId = projectId,
-                UserId = userId,
-                Role = role
-            };
-            _context.ProjectMembers.Add(projectMember);
-            await _context.SaveChangesAsync();
-        }
-    }
+	public async System.Threading.Tasks.Task AddMemberAsync(Guid projectId, Guid userId, int projectRoleId)
+	{
+		var project = await GetByIdAsync(projectId);
+		if (project != null)
+		{
+			var projectMember = new ProjectMember
+			{
+				Id = Guid.NewGuid(), 
+				ProjectId = projectId,
+				UserId = userId,
+				ProjectRoleId = projectRoleId,
+				JoinedAt = DateTime.UtcNow 
+			};
 
-    public async System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid userId)
+			_context.ProjectMembers.Add(projectMember);
+			await _context.SaveChangesAsync();
+		}
+	}
+
+	public async System.Threading.Tasks.Task RemoveMemberAsync(Guid projectId, Guid userId)
     {
         var member = await _context.ProjectMembers
             .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == userId);

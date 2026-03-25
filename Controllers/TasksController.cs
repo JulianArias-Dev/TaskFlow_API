@@ -72,7 +72,7 @@ public class TasksController : ControllerBase
     [HttpGet("status/{status}")]
     [ProducesResponseType(typeof(ResponseDto<List<TaskDto>>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ResponseDto<List<TaskDto>>>> GetTasksByStatus(string status)
+    public async Task<ActionResult<ResponseDto<List<TaskDto>>>> GetTasksByStatus(int status)
     {
         try
         {
@@ -135,43 +135,51 @@ public class TasksController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Crea una tarea especificando su tipo (Factory Method)
-    /// </summary>
-    [HttpPost("by-type")]
-    [ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status201Created)]
-    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ResponseDto<TaskDto>>> CreateTaskByType(
-        [FromQuery] string taskType,
-        [FromQuery] string title,
-        [FromQuery] string description,
-        [FromQuery] Guid projectId)
-    {
-        if (string.IsNullOrWhiteSpace(taskType) || string.IsNullOrWhiteSpace(title))
-        {
-            var errors = new List<string>();
-            if (string.IsNullOrWhiteSpace(taskType)) errors.Add("Task type is required");
-            if (string.IsNullOrWhiteSpace(title)) errors.Add("Title is required");
-            return BadRequest(ResponseDto.ValidationErrorResponse(errors));
-        }
+	/// <summary>
+	/// Crea una tarea especificando su tipo (Factory Method)
+	/// </summary>
+	[HttpPost("by-type")]
+	[ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status201Created)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
+	public async Task<ActionResult<ResponseDto<TaskDto>>> CreateTaskByType(
+	[FromQuery] int taskType, 
+	[FromQuery] string title,
+	[FromQuery] string description,
+	[FromQuery] Guid projectId)
+	{
+		if (taskType <= 0 || string.IsNullOrWhiteSpace(title))
+		{
+			var errors = new List<string>();
+			if (taskType <= 0) errors.Add("Un ID de tipo de tarea válido es requerido");
+			if (string.IsNullOrWhiteSpace(title)) errors.Add("Title is required");
 
-        try
-        {
-            var createdTask = await _taskService.CreateTaskByTypeAsync(taskType, title, description, projectId);
-            _logger.LogInformation("Task '{TaskTitle}' created by type '{TaskType}'", createdTask.Title, taskType);
-            return CreatedAtAction(nameof(GetTaskById), new { id = createdTask.Id },
-                ResponseDto<TaskDto>.SuccessResponse(createdTask, "Task created successfully"));
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return BadRequest(ResponseDto.ErrorResponse(ex.Message, new List<string> { ex.Message }));
-        }
-    }
+			return BadRequest(ResponseDto.ValidationErrorResponse(errors));
+		}
 
-    /// <summary>
-    /// Actualiza una tarea existente
-    /// </summary>
-    [HttpPut("{id}")]
+		try
+		{
+			var createdTask = await _taskService.CreateTaskByTypeAsync(taskType, title, description, projectId);
+
+			_logger.LogInformation("Task '{TaskTitle}' created by type ID '{TaskType}'", createdTask.Title, taskType);
+
+			return CreatedAtAction(nameof(GetTaskById), new { id = createdTask.Id },
+				ResponseDto<TaskDto>.SuccessResponse(createdTask, "Task created successfully"));
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return BadRequest(ResponseDto.ErrorResponse(ex.Message, new List<string> { ex.Message }));
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error creating task by type");
+			return StatusCode(500, ResponseDto.ErrorResponse("An unexpected error occurred"));
+		}
+	}
+
+	/// <summary>
+	/// Actualiza una tarea existente
+	/// </summary>
+	[HttpPut("{id}")]
     [ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
@@ -265,7 +273,7 @@ public class TasksController : ControllerBase
     [HttpGet("count/status/{status}")]
     [ProducesResponseType(typeof(ResponseDto<int>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
-    public async Task<ActionResult<ResponseDto<int>>> GetTaskCountByStatus(string status)
+    public async Task<ActionResult<ResponseDto<int>>> GetTaskCountByStatus(int status)
     {
         try
         {

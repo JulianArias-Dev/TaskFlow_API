@@ -20,16 +20,16 @@ public interface ITaskService
     System.Threading.Tasks.Task<TaskDto?> GetTaskByIdAsync(Guid id);
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetAllTasksAsync();
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByProjectAsync(Guid projectId);
-    System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByStatusAsync(string status);
+    System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByStatusAsync(int status);
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByAssigneeAsync(Guid userId);
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetOverdueTasksAsync();
     System.Threading.Tasks.Task<TaskDto> CreateTaskAsync(CreateTaskDto createTaskDto);
-    System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(string taskType, string title, string description, Guid projectId);
+    System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskType, string title, string description, Guid projectId);
     System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto);
     System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id);
     System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId);
     System.Threading.Tasks.Task<int> GetTaskCountByProjectAsync(Guid projectId);
-    System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(string status);
+    System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int status);
 }
 
 /// <summary>
@@ -41,12 +41,14 @@ public class TaskService : ITaskService
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly TaskFactoryProvider _taskFactory;
+	private readonly INotificationService _notificationService;
 
-    public TaskService(IUnitOfWork unitOfWork)
+	public TaskService(IUnitOfWork unitOfWork, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
         _taskFactory = new TaskFactoryProvider();
-    }
+        _notificationService = notificationService;
+	}
 
     public async System.Threading.Tasks.Task<TaskDto?> GetTaskByIdAsync(Guid id)
     {
@@ -66,18 +68,20 @@ public class TaskService : ITaskService
         return tasks.Select(MapToDto).ToList();
     }
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByStatusAsync(string status)
-    {
-        if (!System.Enum.TryParse<TaskStatus>(status, true, out var parsedStatus))
-        {
-            throw new ArgumentException($"Invalid task status: {status}");
-        }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByStatusAsync(int statusId)
+	{
+		if (statusId <= 0)
+		{
+			throw new ArgumentException("El ID de estado proporcionado no es válido.");
+		}
 
-        var tasks = await _unitOfWork.Tasks.GetTasksByStatusAsync(parsedStatus);
-        return tasks.Select(MapToDto).ToList();
-    }
+		var tasks = await _unitOfWork.Tasks.GetTasksByStatusAsync(statusId);
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByAssigneeAsync(Guid userId)
+		// 3. Mapeamos a DTO
+		return tasks.Select(MapToDto).ToList();
+	}
+
+	public async System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByAssigneeAsync(Guid userId)
     {
         var tasks = await _unitOfWork.Tasks.GetTasksByAssigneeAsync(userId);
         return tasks.Select(MapToDto).ToList();
@@ -89,64 +93,92 @@ public class TaskService : ITaskService
         return tasks.Select(MapToDto).ToList();
     }
 
-    public async System.Threading.Tasks.Task<TaskDto> CreateTaskAsync(CreateTaskDto createTaskDto)
-    {
-        if (!System.Enum.TryParse<TaskType>(createTaskDto.Type, true, out var taskType))
-        {
-            taskType = TaskType.TASK;
-        }
+	public async System.Threading.Tasks.Task<TaskDto> CreateTaskAsync(CreateTaskDto createTaskDto)
+	{
+		var column = await _unitOfWork.Columns.GetByIdAsync(createTaskDto.ColumnId);
+		if (column == null) throw new KeyNotFoundException("Column not found");
 
-        if (!System.Enum.TryParse<TaskPriority>(createTaskDto.Priority, true, out var priority))
-        {
-            priority = TaskPriority.MEDIUM;
-        }
+		var board = await _unitOfWork.Boards.GetByIdAsync(column.BoardId);
+		if (board == null) throw new KeyNotFoundException("Board not found");
+
+		int typeId = createTaskDto.TypeId > 0 ? createTaskDto.TypeId : 1;
+		int priorityId = createTaskDto.PriorityId > 0 ? createTaskDto.PriorityId : 2;
 
 		var task = new TaskEntity
 		{
 			Title = createTaskDto.Title,
 			Description = createTaskDto.Description ?? "",
-			Type = taskType,
-			Priority = priority,
-            ColumnId = createTaskDto.ColumnId,
+			TypeId = typeId,
+			PriorityId = priorityId,
+			ColumnId = createTaskDto.ColumnId,
 			DueDate = createTaskDto.DueDate,
 			EstimatedHours = createTaskDto.EstimatedHours,
 			Tags = createTaskDto.Tags ?? new List<string>(),
-			Assignments = new List<TaskAssignment>(),
-            ParentTaskId = createTaskDto.ParentTaskId ?? null             
+			ParentTaskId = createTaskDto.ParentTaskId
 		};
 
-		// Si el DTO trae un responsable (o varios, si cambias el DTO a una lista)
+		// Lógica de Asignación y Notificación
 		if (createTaskDto.AssignedToUserId.HasValue)
 		{
+			var userId = createTaskDto.AssignedToUserId.Value;
+
+			// VERIFICACIÓN: ¿Es miembro del proyecto?
+			var isMember = await _unitOfWork.Projects.IsMemberAsync(board.ProjectId, userId);
+
+			if (!isMember)
+			{
+				throw new InvalidOperationException("El usuario no es miembro de este proyecto y no puede ser asignado.");
+			}
+
 			task.Assignments.Add(new TaskAssignment
 			{
-				TaskId = task.Id,
-				UserId = createTaskDto.AssignedToUserId.Value,
+				UserId = userId,
 				AssignedAt = DateTime.UtcNow
 			});
+
+			// Persistir la tarea primero para tener el ID generado
+			await _unitOfWork.Tasks.AddAsync(task);
+			await _unitOfWork.SaveChangesAsync();
+
+			//  Enviar Notificación (App + Email)
+			var user = await _unitOfWork.Users.GetByIdAsync(userId);
+			if (user != null)
+			{
+				string subject = "Nueva tarea asignada";
+				string content = $@"
+                <h3>Hola {user.Name},</h3>
+                <p>Se te ha asignado una nueva tarea en el tablero <strong>{board.Name}</strong>.</p>
+                <p><strong>Tarea:</strong> {task.Title}</p>
+                <p><strong>Prioridad:</strong> {task.Priority}</p>";
+
+				await _notificationService.NotifyAsync(userId, subject, content);
+			}
+		}
+		else
+		{
+			await _unitOfWork.Tasks.AddAsync(task);
+			await _unitOfWork.SaveChangesAsync();
 		}
 
+		return MapToDto(task);
+	}
+
+	public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskTypeId, string title, string description, Guid projectId)
+	{
+		int finalTypeId = taskTypeId > 0 ? taskTypeId : 1;
+
+		// 2. La Factory ahora debe recibir el ID (int)
+		var task = _taskFactory.CreateTask(finalTypeId, title, description, projectId);
+
+		// 3. Persistencia
 		await _unitOfWork.Tasks.AddAsync(task);
-        await _unitOfWork.SaveChangesAsync();
+		await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(task);
-    }
+		// 4. Mapeo (Asegúrate de que MapToDto use t.Type.Name)
+		return MapToDto(task);
+	}
 
-    public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(string taskType, string title, string description, Guid projectId)
-    {
-        if (!System.Enum.TryParse<TaskType>(taskType, true, out var parsedType))
-        {
-            parsedType = TaskType.TASK;
-        }
-
-        var task = _taskFactory.CreateTask(parsedType, title, description, projectId);
-        await _unitOfWork.Tasks.AddAsync(task);
-        await _unitOfWork.SaveChangesAsync();
-
-        return MapToDto(task);
-    }
-
-    public async System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto)
+	public async System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto)
     {
 		var task = await _unitOfWork.Tasks.GetTaskWithAssignmentsAsync(id);
 		if (task == null)
@@ -154,44 +186,51 @@ public class TaskService : ITaskService
             throw new KeyNotFoundException($"Task with ID {id} not found");
         }
 
-        if (!string.IsNullOrEmpty(updateTaskDto.Title))
-            task.Title = updateTaskDto.Title;
+		// Identificar el Proyecto para validar membresía (Subiendo por la jerarquía)
+		var column = await _unitOfWork.Columns.GetByIdAsync(task.ColumnId);
+		var board = await _unitOfWork.Boards.GetByIdAsync(column.BoardId);
+		var projectId = board.ProjectId;
 
-        if (!string.IsNullOrEmpty(updateTaskDto.Description))
-            task.Description = updateTaskDto.Description;
-
-        if (!string.IsNullOrEmpty(updateTaskDto.Status) &&
-            System.Enum.TryParse<TaskStatus>(updateTaskDto.Status, true, out var status))
-            task.Status = status;
-
-        if (!string.IsNullOrEmpty(updateTaskDto.Priority) &&
-            System.Enum.TryParse<TaskPriority>(updateTaskDto.Priority, true, out var priority))
-            task.Priority = priority;
-
+		// Lógica de Reasignación con Notificaciones Diferenciadas
 		if (updateTaskDto.AssignedUserIds != null)
 		{
-			// Aseguramos que la colección esté inicializada
-			task.Assignments ??= new List<TaskAssignment>();
+			var oldUserIds = task.Assignments.Select(a => a.UserId).ToList();
+			var newUserIds = updateTaskDto.AssignedUserIds.Where(uid => uid != Guid.Empty).ToList();
 
-			// Limpiamos todas las asignaciones actuales
+			// Identificar grupos
+			var usersToNotifyNew = newUserIds.Except(oldUserIds).ToList();
+			var usersToNotifyRemoved = oldUserIds.Except(newUserIds).ToList();
+			var usersToNotifyUpdated = newUserIds.Intersect(oldUserIds).ToList();
+
+			// Limpiar y Reasignar (Validando membresía)
 			task.Assignments.Clear();
-
-			// Agregamos los nuevos IDs recibidos en la lista
-			foreach (var userId in updateTaskDto.AssignedUserIds)
+			foreach (var userId in newUserIds)
 			{
-				// Validar que el userId no sea Guid.Empty antes de agregar
-				if (userId != Guid.Empty)
+				if (await _unitOfWork.Projects.IsMemberAsync(projectId, userId))
 				{
-					task.Assignments.Add(new TaskAssignment
-					{
-						TaskId = task.Id,
-						UserId = userId,
-						AssignedAt = DateTime.UtcNow
-					});
+					task.Assignments.Add(new TaskAssignment { UserId = userId, AssignedAt = DateTime.UtcNow });
 				}
 			}
-		}
 
+			// Disparar Notificaciones 
+			await NotifyAssignmentChanges(task, usersToNotifyNew, usersToNotifyRemoved, usersToNotifyUpdated);
+		}		
+
+		if (!string.IsNullOrEmpty(updateTaskDto.Title))
+			task.Title = updateTaskDto.Title;
+
+		if (!string.IsNullOrEmpty(updateTaskDto.Description))
+			task.Description = updateTaskDto.Description;
+
+		if (updateTaskDto.StatusId.HasValue && updateTaskDto.StatusId.Value > 0)
+			task.StatusId = updateTaskDto.StatusId.Value;
+		
+		if (updateTaskDto.PriorityId.HasValue && updateTaskDto.PriorityId.Value > 0)
+			task.PriorityId = updateTaskDto.PriorityId.Value;		
+
+		if (updateTaskDto.TypeId.HasValue && updateTaskDto.TypeId.Value > 0)
+			task.TypeId = updateTaskDto.TypeId.Value;
+		
 		if (updateTaskDto.DueDate.HasValue)
             task.DueDate = updateTaskDto.DueDate;
 
@@ -204,13 +243,36 @@ public class TaskService : ITaskService
         if (updateTaskDto.Tags != null)
             task.Tags = updateTaskDto.Tags;
 
-        task.UpdatedAt = DateTime.UtcNow;
+		//if (updateTaskDto.newColumn != null && updateTaskDto.newColumn.Value != task.ColumnId)
+		//{
+		//	// Verificar que la nueva columna pertenezca al mismo Tablero/Proyecto
+		//	var newColumnExists = await _unitOfWork.Columns.ExistsAsync(updateTaskDto.newColumn.Value);
+		//	if (!newColumnExists) throw new KeyNotFoundException("La columna destino no existe.");
+
+		//	task.ColumnId = updateTaskDto.newColumn.Value;
+
+		//	// Aquí podrías disparar una notificación específica de "Movimiento de Tarea"
+		//}
+
+		task.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Tasks.UpdateAsync(task);
         await _unitOfWork.SaveChangesAsync();
 
         return MapToDto(task);
     }
+
+	private async System.Threading.Tasks.Task NotifyAssignmentChanges(TaskEntity task, List<Guid> news, List<Guid> removed, List<Guid> updated)
+	{
+		foreach (var uid in news)
+			await _notificationService.NotifyAsync(uid, "Nueva asignación", $"Has sido asignado a la tarea: {task.Title}");
+
+		foreach (var uid in removed)
+			await _notificationService.NotifyAsync(uid, "Asignación removida", $"Ya no eres responsable de la tarea: {task.Title}");
+
+		foreach (var uid in updated)
+			await _notificationService.NotifyAsync(uid, "Tarea actualizada", $"Se realizaron cambios en la tarea: {task.Title} en la que estás trabajando.");
+	}
 
 	public async System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id)
 	{
@@ -253,17 +315,17 @@ public class TaskService : ITaskService
         return await _unitOfWork.Tasks.GetTaskCountByProjectAsync(projectId);
     }
 
-    public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(string status)
-    {
-        if (!System.Enum.TryParse<TaskStatus>(status, true, out var parsedStatus))
-        {
-            throw new ArgumentException($"Invalid task status: {status}");
-        }
+	public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int statusId)
+	{
+		if (statusId <= 0)
+		{
+			throw new ArgumentException("El ID de estado proporcionado no es válido.");
+		}
 
-        return await _unitOfWork.Tasks.GetTaskCountByStatusAsync(parsedStatus);
-    }
+		return await _unitOfWork.Tasks.GetTaskCountByStatusAsync(statusId);
+	}
 
-    private TaskDto MapToDto(TaskEntity task)
+	private TaskDto MapToDto(TaskEntity task)
     {
         return new TaskDto
         {

@@ -8,25 +8,26 @@ namespace TaskFlow_API.DTOs;
 /// </summary>
 public class CreateUserDto
 {
-    [Required(ErrorMessage = "El email es requerido")]
-    [EmailAddress(ErrorMessage = "El formato del email es inválido")]
-    public string Email { get; set; } = string.Empty;
+	[Required(ErrorMessage = "El email es requerido")]
+	[EmailAddress(ErrorMessage = "El formato del email es inválido")]
+	public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "El nombre es requerido")]
-    [StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
-    public string Name { get; set; } = string.Empty;
+	[Required(ErrorMessage = "El nombre es requerido")]
+	[StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
+	public string Name { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "La contraseña es requerida")]
-    [StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
-    [RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
-        ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
-    public string Password { get; set; } = string.Empty;
+	[Required(ErrorMessage = "La contraseña es requerida")]
+	[StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
+	[RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
+		ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
+	public string Password { get; set; } = string.Empty;
 
-    [Url(ErrorMessage = "La URL del avatar es inválida")]
-    public string? AvatarUrl { get; set; }
+	[Url(ErrorMessage = "La URL del avatar es inválida")]
+	public string? AvatarUrl { get; set; }
 
-    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer|CommonUser)$", ErrorMessage = "Rol de usuario inválido")]
-    public string Role { get; set; } = "Developer";
+	[Required(ErrorMessage = "El ID de rol es requerido")]
+	[Range(1, int.MaxValue, ErrorMessage = "ID de rol inválido")]
+	public int RoleId { get; set; } = 3; // Suponiendo que 3 es 'Developer' en tu tabla
 }
 
 /// <summary>
@@ -112,5 +113,6 @@ public class LoginResponseDto
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
-    public DateTime ExpiresAt { get; set; }
+    public bool LightTheme { get; set; } = true;
+	public DateTime ExpiresAt { get; set; }
 }

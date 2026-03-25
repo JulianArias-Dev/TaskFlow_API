@@ -1,4 +1,4 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TaskFlow_API.Data;
 using TaskFlow_API.Models;
 using TaskEntity = TaskFlow_API.Models.Task;
@@ -8,22 +8,22 @@ namespace TaskFlow_API.Repositories;
 
 /// <summary>
 /// Interfaz especializada para operaciones de Task
-/// Extiende el repositorio gen�rico con m�todos espec�ficos de negocio
+/// Extiende el repositorio genérico con métodos específicos de negocio
 /// </summary>
 public interface ITaskRepository : IRepository<TaskEntity>
 {
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByProjectAsync(Guid projectId);
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByColumnAsync(Guid columnId);
-    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByStatusAsync(TaskStatus status);
+    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByStatusAsync(int statusId);
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByAssigneeAsync(Guid userId);
-    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByPriorityAsync(Models.TaskPriority priority);
-    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByTypeAsync(Models.TaskType type);
+    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByPriorityAsync(int priorityId);
+    System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByTypeAsync(int typeId);
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetOverdueTasksAsync();
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetSubTasksAsync(Guid parentTaskId);
     System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByProjectAsync(Guid projectId, int pageNumber, int pageSize);
-    System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(TaskStatus status, int pageNumber, int pageSize);
+    System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(int statusId, int pageNumber, int pageSize);
     System.Threading.Tasks.Task<int> GetTaskCountByProjectAsync(Guid projectId);
-    System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(TaskStatus status);
+    System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int statusId);
     System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId);
     System.Threading.Tasks.Task<IEnumerable<TaskEntity>> SearchTasksAsync(string searchTerm, Guid projectId);
     System.Threading.Tasks.Task<TaskEntity?> GetTaskWithAssignmentsAsync(Guid id);
@@ -32,7 +32,7 @@ public interface ITaskRepository : IRepository<TaskEntity>
 
 /// <summary>
 /// Repositorio especializado para Task
-/// Implementa operaciones espec�ficas del dominio de tareas
+/// Implementa operaciones específicas del dominio de tareas
 /// </summary>
 public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 {
@@ -67,24 +67,30 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	}
 
 	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByColumnAsync(Guid columnId)
-    {
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.ColumnId == columnId)
-            .OrderBy(t => t.Priority)
-            .ToListAsync();
-    }
+	{
+		return await _dbSet
+			.Include(t => t.Assignments)
+				.ThenInclude(a => a.User)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
+			.Where(t => t.ColumnId == columnId)
+			.OrderBy(t => t.PriorityId)
+			.ToListAsync();
+	}
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByStatusAsync(TaskStatus status)
-    {
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.Status == status)
-            .OrderByDescending(t => t.UpdatedAt)
-            .ToListAsync();
-    }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByStatusAsync(int statusId)
+	{
+		return await _dbSet
+			.Include(t => t.Assignments)
+				.ThenInclude(a => a.User)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
+			.Where(t => t.StatusId == statusId)
+			.OrderByDescending(t => t.UpdatedAt)
+			.ToListAsync();
+	}
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByAssigneeAsync(Guid userId)
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByAssigneeAsync(Guid userId)
     {
         return await _dbSet
             .Include(t => t.Column)
@@ -93,35 +99,40 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
             .ToListAsync();
     }
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByPriorityAsync(Models.TaskPriority priority)
-    {
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.Priority == priority)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
-    }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByPriorityAsync(int priorityId)
+	{
+		return await _dbSet
+			.Include(t => t.Assignments).ThenInclude(a => a.User)
+			.Include(t => t.Priority)
+			.Where(t => t.PriorityId == priorityId) // ✅ Filtrado por ID
+			.OrderByDescending(t => t.CreatedAt)
+			.ToListAsync();
+	}
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByTypeAsync(Models.TaskType type)
-    {
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.Type == type)
-            .OrderByDescending(t => t.CreatedAt)
-            .ToListAsync();
-    }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByTypeAsync(int typeId)
+	{
+		return await _dbSet
+			.Include(t => t.Assignments).ThenInclude(a => a.User)
+			.Include(t => t.Type)
+			.Where(t => t.TypeId == typeId) // ✅ Filtrado por ID
+			.OrderByDescending(t => t.CreatedAt)
+			.ToListAsync();
+	}
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetOverdueTasksAsync()
-    {
-        var now = DateTime.UtcNow;
-        return await _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.DueDate < now && t.Status != TaskStatus.DONE)
-            .OrderBy(t => t.DueDate)
-            .ToListAsync();
-    }
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetOverdueTasksAsync()
+	{
+		var now = DateTime.UtcNow;
+		int doneStatusId = 3;
 
-    public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetSubTasksAsync(Guid parentTaskId)
+		return await _dbSet
+			.Include(t => t.Assignments).ThenInclude(a => a.User)
+			.Include(t => t.Status)
+			.Where(t => t.DueDate < now && t.StatusId != doneStatusId) // ✅ Comparación por ID
+			.OrderBy(t => t.DueDate)
+			.ToListAsync();
+	}
+
+	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetSubTasksAsync(Guid parentTaskId)
     {
         return await _dbSet
             .Where(t => t.ParentTaskId == parentTaskId)
@@ -146,19 +157,25 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 		return (items, totalCount);
 	}
 
-	public async System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(TaskStatus status, int pageNumber, int pageSize)
-    {
-        var query = _dbSet
-            .Include(t => t.AssignedTo)
-            .Where(t => t.Status == status);
-        var totalCount = await query.CountAsync();
-        var items = await query
-            .OrderByDescending(t => t.UpdatedAt)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
-            .ToListAsync();
-        return (items, totalCount);
-    }
+	public async System.Threading.Tasks.Task<(List<TaskEntity> items, int totalCount)> GetTasksPagedByStatusAsync(int statusId, int pageNumber, int pageSize)
+	{
+		var query = _dbSet
+			.Include(t => t.Assignments)
+				.ThenInclude(a => a.User)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
+			.Where(t => t.StatusId == statusId);
+
+		var totalCount = await query.CountAsync();
+
+		var items = await query
+			.OrderByDescending(t => t.UpdatedAt)
+			.Skip((pageNumber - 1) * pageSize)
+			.Take(pageSize)
+			.ToListAsync();
+
+		return (items, totalCount);
+	}
 
 	public async Task<int> GetTaskCountByProjectAsync(Guid projectId)
 	{
@@ -166,12 +183,12 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 			.CountAsync(t => t.Column!.Board!.ProjectId == projectId);
 	}
 
-	public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(TaskStatus status)
-    {
-        return await _dbSet.CountAsync(t => t.Status == status);
-    }
+	public async System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int statusId)
+	{
+		return await _dbSet.CountAsync(t => t.StatusId == statusId);
+	}
 
-    public async System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId)
+	public async System.Threading.Tasks.Task<int> GetTaskCountByColumnAsync(Guid columnId)
     {
         return await _dbSet.CountAsync(t => t.ColumnId == columnId);
     }

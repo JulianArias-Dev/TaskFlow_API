@@ -8,34 +8,34 @@ namespace TaskFlow_API.DTOs;
 /// </summary>
 public class CreateTaskDto
 {
-    [Required(ErrorMessage = "El título es requerido")]
-    [StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
-    public string Title { get; set; } = string.Empty;
+	[Required(ErrorMessage = "El título es requerido")]
+	[StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
+	public string Title { get; set; } = string.Empty;
 
-    [StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
-    public string? Description { get; set; }
+	[StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
+	public string? Description { get; set; }
 
-    [Required(ErrorMessage = "El tipo de tarea es requerido")]
-    [RegexAttribute(@"^(BUG|FEATURE|TASK|IMPROVEMENT|SUBTASK)$", ErrorMessage = "Tipo de tarea inválido")]
-    public string Type { get; set; } = "TASK";
-    
-    [Required(ErrorMessage = "El ID de la columna es requerido")]
-    public Guid ColumnId { get; set; }
+	[Required(ErrorMessage = "El ID del tipo de tarea es requerido")]
+	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea inválido")]
+	public int TypeId { get; set; } = 1; // Default a ID de 'TASK'
 
-    [RegexAttribute(@"^(LOW|MEDIUM|HIGH|CRITICAL)$", ErrorMessage = "Prioridad inválida")]
-    public string Priority { get; set; } = "MEDIUM";
+	[Required(ErrorMessage = "El ID de la columna es requerido")]
+	public Guid ColumnId { get; set; }
 
-    public Guid? AssignedToUserId { get; set; }
+	[Range(1, int.MaxValue, ErrorMessage = "Prioridad inválida")]
+	public int PriorityId { get; set; } = 2; // Default a ID de 'MEDIUM'
 
-    [DataType(DataType.DateTime)]
-    public DateTime? DueDate { get; set; }
+	public Guid? AssignedToUserId { get; set; }
 
-    [Range(0, 999, ErrorMessage = "Las horas estimadas no pueden ser negativas")]
-    public int EstimatedHours { get; set; } = 0;
+	[DataType(DataType.DateTime)]
+	public DateTime? DueDate { get; set; }
 
-    public List<string> Tags { get; set; } = new();
+	[Range(0, 999, ErrorMessage = "Las horas estimadas no pueden ser negativas")]
+	public int EstimatedHours { get; set; } = 0;
 
-    public Guid? ParentTaskId { get; set; }
+	public List<string> Tags { get; set; } = new();
+
+	public Guid? ParentTaskId { get; set; }
 }
 
 /// <summary>
@@ -43,33 +43,33 @@ public class CreateTaskDto
 /// </summary>
 public class UpdateTaskDto
 {
-    [StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
-    public string? Title { get; set; }
+	[StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
+	public string? Title { get; set; }
 
-    [StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
-    public string? Description { get; set; }
+	[StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
+	public string? Description { get; set; }
 
-	[RegexAttribute(@"^(BUG|FEATURE|TASK|IMPROVEMENT|SUBTASK)$", ErrorMessage = "Tipo de tarea inválido")]
-	public string? Type { get; set; }
+	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea inválido")]
+	public int? TypeId { get; set; }
 
-    [RegexAttribute(@"^(TODO|IN_PROGRESS|IN_REVIEW|DONE|BLOCKED)$", ErrorMessage = "Estado inválido")]
-    public string? Status { get; set; }
+	[Range(1, int.MaxValue, ErrorMessage = "Estado inválido")]
+	public int? StatusId { get; set; }
 
-    [RegexAttribute(@"^(LOW|MEDIUM|HIGH|CRITICAL)$", ErrorMessage = "Prioridad inválida")]
-    public string? Priority { get; set; }
+	[Range(1, int.MaxValue, ErrorMessage = "Prioridad inválida")]
+	public int? PriorityId { get; set; }
 
 	public List<Guid>? AssignedUserIds { get; set; }
 
 	[DataType(DataType.DateTime)]
-    public DateTime? DueDate { get; set; }
+	public DateTime? DueDate { get; set; }
 
-    [Range(0, 999, ErrorMessage = "Las horas estimadas no pueden ser negativas")]
-    public int? EstimatedHours { get; set; }
+	[Range(0, 999, ErrorMessage = "Las horas estimadas no pueden ser negativas")]
+	public int? EstimatedHours { get; set; }
 
-    [Range(0, 999, ErrorMessage = "Las horas actuales no pueden ser negativas")]
-    public int? ActualHours { get; set; }
+	[Range(0, 999, ErrorMessage = "Las horas actuales no pueden ser negativas")]
+	public int? ActualHours { get; set; }
 
-    public List<string>? Tags { get; set; }
+	public List<string>? Tags { get; set; }
 }
 
 /// <summary>
@@ -77,24 +77,31 @@ public class UpdateTaskDto
 /// </summary>
 public class TaskDto
 {
-    public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Description { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public string Priority { get; set; } = string.Empty;
-    public Guid ColumnId { get; set; }
-    public List<Guid> AssignedUserIds { get; set; } = new();
+	public Guid Id { get; set; }
+	public string Title { get; set; } = string.Empty;
+	public string Description { get; set; } = string.Empty;
+
+	public string Type { get; set; } = string.Empty;
+	public int TypeId { get; set; }
+
+	public string Status { get; set; } = string.Empty;
+	public int StatusId { get; set; }
+
+	public string Priority { get; set; } = string.Empty;
+	public int PriorityId { get; set; }
+
+	public Guid ColumnId { get; set; }
+	public List<Guid> AssignedUserIds { get; set; } = new();
 	public Guid? ParentTaskId { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime UpdatedAt { get; set; }
-    public DateTime? DueDate { get; set; }
-    public int EstimatedHours { get; set; }
-    public int ActualHours { get; set; }
-    public List<string> Tags { get; set; } = new();
-    public int SubTaskCount { get; set; } = 0;
-    public int CommentCount { get; set; } = 0;
-    public int FileCount { get; set; } = 0;
+	public DateTime CreatedAt { get; set; }
+	public DateTime UpdatedAt { get; set; }
+	public DateTime? DueDate { get; set; }
+	public int EstimatedHours { get; set; }
+	public int ActualHours { get; set; }
+	public List<string> Tags { get; set; } = new();
+	public int SubTaskCount { get; set; }
+	public int CommentCount { get; set; }
+	public int FileCount { get; set; }
 }
 
 /// <summary>
@@ -102,10 +109,12 @@ public class TaskDto
 /// </summary>
 public class TaskSimpleDto
 {
-    public Guid Id { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
-    public string Priority { get; set; } = string.Empty;
-    public List<Guid> AssignedUserIds { get; set; } = new();
-    public DateTime? DueDate { get; set; }
+	public Guid Id { get; set; }
+	public string Title { get; set; } = string.Empty;
+	public string Status { get; set; } = string.Empty;
+	public int StatusId { get; set; }
+	public string Priority { get; set; } = string.Empty;
+	public int PriorityId { get; set; }
+	public List<Guid> AssignedUserIds { get; set; } = new();
+	public DateTime? DueDate { get; set; }
 }

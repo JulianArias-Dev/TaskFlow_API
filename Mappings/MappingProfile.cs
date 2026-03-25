@@ -1,4 +1,4 @@
-using AutoMapper;
+﻿using AutoMapper;
 using TaskFlow_API.DTOs;
 using TaskFlow_API.Models;
 using TaskEntity = TaskFlow_API.Models.Task;
@@ -8,7 +8,7 @@ namespace TaskFlow_API.Mappings;
 
 /// <summary>
 /// Perfil de mapeo AutoMapper para entidades y DTOs
-/// Define conversiones bidireccionales autom�ticas
+/// Define conversiones bidireccionales automáticas
 /// </summary>
 public class MappingProfile : Profile
 {
@@ -67,25 +67,28 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Members, opt => opt.Ignore())
             .ForMember(dest => dest.Owner, opt => opt.Ignore());
 
-        // User Mappings
-        CreateMap<User, UserDto>()
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()))
-            .ForMember(dest => dest.ProjectCount, opt => opt.MapFrom(src => src.ProjectMemberships.Count))
-            .ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.AssignedTasks.Count));
+		// User Mappings
+		// 1. Mapeo para UserDto
+		CreateMap<User, UserDto>()
+			.ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.AppRole != null ? src.AppRole.Name : "User"))
+			.ForMember(dest => dest.ProjectCount, opt => opt.MapFrom(src => src.ProjectMemberships.Count))
+			.ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.Assignments.Count));
 
-        CreateMap<User, UserSimpleDto>()
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+		// 2. Mapeo para UserSimpleDto
+		CreateMap<User, UserSimpleDto>()
+			// ✅ Mismo cambio aquí para el nombre descriptivo
+			.ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.AppRole != null ? src.AppRole.Name : "User"));
 
-        CreateMap<CreateUserDto, User>()
+		CreateMap<CreateUserDto, User>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.LastLoginAt, opt => opt.Ignore())
             .ForMember(dest => dest.IsActive, opt => opt.Ignore())
-            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) // Ser� hasheada en el servicio
-            .ForMember(dest => dest.Role, opt => opt.Ignore())
+            .ForMember(dest => dest.PasswordHash, opt => opt.Ignore()) // Será hasheada en el servicio
+            .ForMember(dest => dest.AppRole, opt => opt.Ignore())
             .ForMember(dest => dest.OwnedProjects, opt => opt.Ignore())
-            .ForMember(dest => dest.AssignedTasks, opt => opt.Ignore())
+            .ForMember(dest => dest.Assignments, opt => opt.Ignore())
             .ForMember(dest => dest.Comments, opt => opt.Ignore())
             .ForMember(dest => dest.ProjectMemberships, opt => opt.Ignore());
 
@@ -154,12 +157,12 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.UserName, opt => opt.MapFrom(src => src.User != null ? src.User.Name : ""))
             .ForMember(dest => dest.UserEmail, opt => opt.MapFrom(src => src.User != null ? src.User.Email : ""))
             .ForMember(dest => dest.UserAvatar, opt => opt.MapFrom(src => src.User != null ? src.User.AvatarUrl : null))
-            .ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.Role.ToString()));
+			.ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.ProjectRole != null ? src.ProjectRole.Name : "Sev"));
 
-        CreateMap<AddProjectMemberDto, ProjectMember>()
+		CreateMap<AddProjectMemberDto, ProjectMember>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.JoinedAt, opt => opt.Ignore())
-            .ForMember(dest => dest.Role, opt => opt.Ignore())
+            .ForMember(dest => dest.ProjectRole, opt => opt.Ignore())
             .ForMember(dest => dest.Project, opt => opt.Ignore())
             .ForMember(dest => dest.User, opt => opt.Ignore());
 

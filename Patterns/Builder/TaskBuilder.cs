@@ -19,9 +19,9 @@ public class TaskBuilder
         _task = new TaskEntity
         {
             ColumnId = columnId,
-            Status = TaskStatus.TODO,
-            Priority = TaskPriority.MEDIUM,
-            Type = TaskType.TASK
+            StatusId = 1,
+            PriorityId = 2,
+            TypeId = 5
         };
     }
 
@@ -107,7 +107,7 @@ public class TaskBuilder
     public TaskBuilder AsSubtask(Guid parentTaskId)
     {
         _task.ParentTaskId = parentTaskId;
-        _task.Type = TaskType.SUBTASK;
+        _task.TypeId = 6;
         return this;
     }
 
@@ -144,9 +144,9 @@ public class TaskBuilder
         _task = new TaskEntity
         {
             ColumnId = columnId,
-            Status = TaskStatus.TODO,
-            Priority = TaskPriority.MEDIUM,
-            Type = TaskType.TASK
+            StatusId = 1,
+            PriorityId = 2,
+            TypeId = 5
         };
     }
 }
