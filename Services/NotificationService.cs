@@ -1,7 +1,8 @@
 ﻿using MailKit.Net.Smtp;
-using MailKit.Security;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using MimeKit;
+using TaskFlow_API.DTOs;
 using TaskFlow_API.Models;
 using TaskFlow_API.Repositories;
 
@@ -19,6 +20,8 @@ namespace TaskFlow_API.Services
 	public interface INotificationService
 	{
 		System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content);
+		System.Threading.Tasks.Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId);
+		System.Threading.Tasks.Task<bool> MarkAsReadAsync(Guid notificationId);
 	}
 
 	public class NotificationService : INotificationService
@@ -27,10 +30,46 @@ namespace TaskFlow_API.Services
 		//private readonly IConfiguration _config;
 		private readonly EmailSettings _emailSettings;
 
+
 		public NotificationService(IUnitOfWork unitOfWork, IOptions<EmailSettings> emailOptions)
 		{
 			_unitOfWork = unitOfWork;
 			_emailSettings = emailOptions.Value;
+		}
+
+		public async Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId)
+		{
+			// Al no tener Queryable, obtenemos la lista y filtramos
+			// NOTA: Si tienes muchos datos, esto puede ser lento, pero para el proyecto sirve.
+			var allNotifications = await _unitOfWork.Notifications.GetAllAsync();
+
+			return allNotifications
+				.Where(n => n.UserId == userId)
+				.OrderByDescending(n => n.CreatedAt)
+				.Take(30)
+				.Select(n => new NotificationDto
+				{
+					Id = n.Id,
+					Message = n.Content,
+					Type = n.Subject,
+					Content = n.Content,
+					CreatedAt = n.CreatedAt,
+					IsRead = n.IsRead
+				})
+				.ToList();
+		}
+
+		public async Task<bool> MarkAsReadAsync(Guid notificationId)
+		{
+			// Usamos el GetByIdAsync estándar del repositorio
+			var notification = await _unitOfWork.Notifications.GetByIdAsync(notificationId);
+
+			if (notification == null) return false;
+
+			notification.IsRead = true;
+
+			// El UnitOfWork persiste los cambios de todas las entidades rastreadas
+			return await _unitOfWork.SaveChangesAsync() > 0;
 		}
 
 		public async System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content)

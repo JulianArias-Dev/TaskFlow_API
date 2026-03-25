@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using TaskFlow_API.DTOs;
 using TaskFlow_API.Models;
 using TaskFlow_API.Services;
 
@@ -14,12 +17,14 @@ namespace TaskFlow_API.Controllers;
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
-    private readonly ILogger<UsersController> _logger;
+    private readonly INotificationService _notificationService;
+	private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, ILogger<UsersController> logger)
+    public UsersController(IUserService userService, ILogger<UsersController> logger, INotificationService notificationService)
     {
         _userService = userService;
-        _logger = logger;
+        _notificationService = notificationService;
+		_logger = logger;
     }
 
     /// <summary>
@@ -197,4 +202,36 @@ public class UsersController : ControllerBase
         var count = await _userService.GetProjectCountAsync(userId);
         return Ok(new { count });
     }
+
+	/// <summary>
+	/// Obtiene las notificaciones de un usuario
+	/// </summary>
+	/// <returns></returns>
+	[HttpGet("my-notifications")]
+	[Authorize]
+	public async Task<ActionResult<IEnumerable<NotificationDto>>> GetMyNotifications()
+	{
+		// Extraer el ID del usuario desde los Claims del Token
+		var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+		if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+
+		var userId = Guid.Parse(userIdClaim);
+
+		// Consulta directa (puedes moverla al service si tienes tiempo, si no, así es más rápido)
+		var notifications = await _notificationService.GetUserNotificationsAsync(userId);
+
+		return Ok(notifications);
+	}
+
+	/// <summary>
+	///  Marca la notificación como leída
+	/// </summary>
+	[HttpPost("notifications/{id}/read")]
+	[Authorize]
+	public async Task<IActionResult> MarkAsRead(Guid id)
+	{
+		await _notificationService.MarkAsReadAsync(id);
+
+		return NoContent();
+	}
 }
