@@ -26,9 +26,9 @@ public class BugTaskFactory : ITaskFactory
         {
             Title = title,
             Description = description,
-            Type = TaskType.BUG,
-            Priority = TaskPriority.HIGH,
-            Status = TaskStatus.TODO
+            TypeId = 2,
+            PriorityId = 3,
+            StatusId = 1
         };
     }
 }
@@ -44,9 +44,9 @@ public class FeatureTaskFactory : ITaskFactory
         {
             Title = title,
             Description = description,
-            Type = TaskType.FEATURE,
-            Priority = TaskPriority.MEDIUM,
-            Status = TaskStatus.TODO
+            TypeId = 2,
+            PriorityId = 2,
+            StatusId = 1
         };
     }
 }
@@ -62,9 +62,9 @@ public class SimpleTaskFactory : ITaskFactory
         {
             Title = title,
             Description = description,
-            Type = TaskType.TASK,
-            Priority = TaskPriority.MEDIUM,
-            Status = TaskStatus.TODO
+            TypeId = 5,
+            PriorityId = 2,
+            StatusId = 1
         };
     }
 }
@@ -80,9 +80,9 @@ public class ImprovementTaskFactory : ITaskFactory
         {
             Title = title,
             Description = description,
-            Type = TaskType.IMPROVEMENT,
-            Priority = TaskPriority.LOW,
-            Status = TaskStatus.TODO
+            TypeId = 3,
+            PriorityId = 1,
+            StatusId = 1 
         };
     }
 }
@@ -93,26 +93,26 @@ public class ImprovementTaskFactory : ITaskFactory
 /// </summary>
 public class TaskFactoryProvider
 {
-    private readonly Dictionary<TaskType, ITaskFactory> _factories;
+	private readonly Dictionary<int, ITaskFactory> _factories;
 
-    public TaskFactoryProvider()
-    {
-        _factories = new Dictionary<TaskType, ITaskFactory>
-        {
-            { TaskType.BUG, new BugTaskFactory() },
-            { TaskType.FEATURE, new FeatureTaskFactory() },
-            { TaskType.TASK, new SimpleTaskFactory() },
-            { TaskType.IMPROVEMENT, new ImprovementTaskFactory() }
+	public TaskFactoryProvider()
+	{
+		_factories = new Dictionary<int, ITaskFactory>
+		{
+			{ 1, new SimpleTaskFactory() },      // ID 1: TASK
+            { 2, new BugTaskFactory() },        // ID 2: BUG
+            { 3, new FeatureTaskFactory() },    // ID 3: FEATURE
+            { 4, new ImprovementTaskFactory() } // ID 4: IMPROVEMENT
         };
-    }
+	}
 
-    public TaskEntity CreateTask(TaskType taskType, string title, string description, Guid projectId)
-    {
-        if (!_factories.TryGetValue(taskType, out var factory))
-        {
-            throw new ArgumentException($"Unknown task type: {taskType}");
-        }
+	public TaskEntity CreateTask(int taskTypeId, string title, string description, Guid projectId)
+	{
+		if (!_factories.TryGetValue(taskTypeId, out var factory))
+		{
+			throw new ArgumentException($"Unknown task type ID: {taskTypeId}");
+		}
 
-        return factory.CreateTask(title, description, projectId);
-    }
+		return factory.CreateTask(title, description, projectId);
+	}
 }

@@ -20,8 +20,8 @@ public interface IProjectService
     System.Threading.Tasks.Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto updateProjectDto);
     System.Threading.Tasks.Task<bool> DeleteProjectAsync(Guid id);
     System.Threading.Tasks.Task<ProjectDto?> CloneProjectAsync(Guid projectId, Guid newOwnerId);
-    System.Threading.Tasks.Task<bool> AddMemberAsync(Guid projectId, Guid userId, UserRole role = UserRole.Developer);
-    System.Threading.Tasks.Task<bool> RemoveMemberAsync(Guid projectId, Guid userId);
+	System.Threading.Tasks.Task<bool> AddMemberAsync(Guid projectId, Guid userId, int projectRoleId);
+	System.Threading.Tasks.Task<bool> RemoveMemberAsync(Guid projectId, Guid userId);
     System.Threading.Tasks.Task<bool> IsMemberAsync(Guid projectId, Guid userId);
     System.Threading.Tasks.Task<int> GetProjectCountByOwnerAsync(Guid ownerId);
 }
@@ -36,10 +36,10 @@ public class ProjectService : IProjectService
     private readonly IUnitOfWork _unitOfWork;
     private readonly INotificationService _notificationService;
 
-	public ProjectService(IUnitOfWork unitOfWork)
+	public ProjectService(IUnitOfWork unitOfWork, INotificationService notificationService)
     {
         _unitOfWork = unitOfWork;
-        _notificationService = new NotificationService(unitOfWork, new ConfigurationBuilder().AddJsonFile("appsettings.json").Build());
+        _notificationService = notificationService;
 	}
 
     public async System.Threading.Tasks.Task<ProjectDto?> GetProjectByIdAsync(Guid id)
@@ -89,37 +89,43 @@ public class ProjectService : IProjectService
 		return MapToDto(project);
     }
 
-    public async System.Threading.Tasks.Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto updateProjectDto)
-    {
-        var project = await _unitOfWork.Projects.GetByIdAsync(id);
-        if (project == null)
-        {
-            throw new KeyNotFoundException($"Project with ID {id} not found");
-        }
-
-        if (!string.IsNullOrEmpty(updateProjectDto.Name))
-            project.Name = updateProjectDto.Name;
-
-        if (!string.IsNullOrEmpty(updateProjectDto.Description))
-            project.Description = updateProjectDto.Description;
-
-        if (!string.IsNullOrEmpty(updateProjectDto.Color))
-            project.Color = updateProjectDto.Color;
-
-		if (!string.IsNullOrEmpty(updateProjectDto.Status))
+	public async System.Threading.Tasks.Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto updateProjectDto)
+	{
+		var project = await _unitOfWork.Projects.GetByIdAsync(id);
+		if (project == null)
 		{
-			project.Status = Enum.Parse<ProjectStatus>(updateProjectDto.Status, ignoreCase: true);
+			throw new KeyNotFoundException($"Project with ID {id} not found");
+		}
+
+		if (!string.IsNullOrEmpty(updateProjectDto.Name))
+			project.Name = updateProjectDto.Name;
+
+		if (updateProjectDto.Description != null) // Permite limpiar la descripción enviando ""
+			project.Description = updateProjectDto.Description;
+
+		if (!string.IsNullOrEmpty(updateProjectDto.Color))
+			project.Color = updateProjectDto.Color;
+
+		if (updateProjectDto.StartDate.HasValue)
+			project.StartDate = updateProjectDto.StartDate.Value;
+
+		if (updateProjectDto.EndDate.HasValue)
+			project.EndDate = updateProjectDto.EndDate.Value;
+
+		if (updateProjectDto.StatusId.HasValue && updateProjectDto.StatusId.Value > 0)
+		{
+			project.StatusId = updateProjectDto.StatusId.Value;
 		}
 
 		project.UpdatedAt = DateTime.UtcNow;
 
-        await _unitOfWork.Projects.UpdateAsync(project);
-        await _unitOfWork.SaveChangesAsync();
+		await _unitOfWork.Projects.UpdateAsync(project);
+		await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(project);
-    }
+		return MapToDto(project);
+	}
 
-    public async System.Threading.Tasks.Task<bool> DeleteProjectAsync(Guid id)
+	public async System.Threading.Tasks.Task<bool> DeleteProjectAsync(Guid id)
     {
         var project = await _unitOfWork.Projects.GetByIdAsync(id);
         if (project == null)
@@ -149,41 +155,35 @@ public class ProjectService : IProjectService
         return MapToDto(clonedProject);
     }
 
-    public async System.Threading.Tasks.Task<bool> AddMemberAsync(Guid projectId, Guid userId, UserRole role = UserRole.Developer)
-    {
-        var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
-        if (project == null)
-        {
-            return false;
-        }
+	public async System.Threading.Tasks.Task<bool> AddMemberAsync(Guid projectId, Guid userId, int projectRoleId = 2) // Supongamos que 2 es 'Developer' en tu nueva tabla
+	{
+		var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
+		if (project == null) return false;
 
-        var user = await _unitOfWork.Users.GetByIdAsync(userId);
-        if (user == null)
-        {
-            return false;
-        }
+		var user = await _unitOfWork.Users.GetByIdAsync(userId);
+		if (user == null) return false;
 
-        var isMember = await _unitOfWork.Projects.IsMemberAsync(projectId, userId);
+		var isMember = await _unitOfWork.Projects.IsMemberAsync(projectId, userId);
 
 		if (!isMember)
 		{
-			await _unitOfWork.Projects.AddMemberAsync(projectId, userId, role);
-			await _unitOfWork.SaveChangesAsync(); // Asegurar que se guarde antes de notificar
+			await _unitOfWork.Projects.AddMemberAsync(projectId, userId, projectRoleId);
 
-			// Notificación de Invitación
+			await _unitOfWork.SaveChangesAsync();
+
 			string subject = $"Has sido invitado al proyecto: {project.Name}";
 			string content = $@"
             <h3>¡Hola, {user.Name}!</h3>
-            <p>Has sido agregado al proyecto <strong>{project.Name}</strong> con el rol de <strong>{role}</strong>.</p>
+            <p>Has sido agregado al proyecto <strong>{project.Name}</strong>.</p>
             <p>Ya puedes empezar a colaborar con el equipo.</p>";
 
 			await _notificationService.NotifyAsync(userId, subject, content);
 		}
 
 		return true;
-    }
+	}
 
-    public async System.Threading.Tasks.Task<bool> RemoveMemberAsync(Guid projectId, Guid userId)
+	public async System.Threading.Tasks.Task<bool> RemoveMemberAsync(Guid projectId, Guid userId)
     {
         var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
         if (project == null)

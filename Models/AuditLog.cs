@@ -14,7 +14,8 @@ public class AuditLog
     
     // Quién hizo el cambio
     public Guid? UserId { get; set; } // Nullable para cambios del sistema
-    public string? UserName { get; set; } // Nombre del usuario para referencia (sin FK)
+    public User? User { get; set; } // Relación opcional para obtener detalles del usuario
+	public string? UserName { get; set; } // Nombre del usuario para referencia (sin FK)
     
     // Qué acción se realizó
     public string Action { get; set; } = string.Empty; // Created, Updated, Deleted

@@ -11,10 +11,12 @@ public class ProjectMember
     // Foreign Keys
     public Guid ProjectId { get; set; }
     public Guid UserId { get; set; }
-    
-    // Información adicional
-    public UserRole Role { get; set; } = UserRole.Developer;
-    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+	// Información adicional
+	public int ProjectRoleId { get; set; }
+	public ProjectRole ProjectRole { get; set; } = null!;
+
+	public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 
     // Navigation Properties
     public Project? Project { get; set; }
