@@ -168,5 +168,12 @@ public class MappingProfile : Profile
 
         // AuditLog Mappings
         CreateMap<AuditLog, AuditLogDto>();
-    }
+
+		CreateMap<TaskType, CatalogDto>();
+		CreateMap<TaskPriority, CatalogDto>();
+		CreateMap<TaskFlow_API.Models.TaskStatus, CatalogDto>();
+		CreateMap<AppRole, CatalogDto>();
+		CreateMap<ProjectRole, CatalogDto>();
+		CreateMap<ProjectStatus, CatalogDto>();
+	}
 }

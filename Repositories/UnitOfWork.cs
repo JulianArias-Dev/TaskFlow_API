@@ -20,6 +20,7 @@ public interface IUnitOfWork : IDisposable
     IProjectMemberRepository ProjectMembers { get; }
     IAuditLogRepository AuditLogs { get; }
 	INotificationRepository Notifications { get; }
+    ICatalogRepository Catalog { get; }
 
 	System.Threading.Tasks.Task<int> SaveChangesAsync();
     System.Threading.Tasks.Task<bool> BeginTransactionAsync();
@@ -47,6 +48,7 @@ public class UnitOfWork : IUnitOfWork
     private IProjectMemberRepository? _projectMemberRepository;
     private IAuditLogRepository? _auditLogRepository;
 	private INotificationRepository? _notifications;
+    private ICatalogRepository? _catalog;
 
 	public UnitOfWork(TaskFlowDbContext context)
     {
@@ -65,6 +67,7 @@ public class UnitOfWork : IUnitOfWork
     public IProjectMemberRepository ProjectMembers => _projectMemberRepository ??= new ProjectMemberRepository(_context);
     public IAuditLogRepository AuditLogs => _auditLogRepository ??= new AuditLogRepository(_context);
 	public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
+	public ICatalogRepository Catalog => _catalog ??= new CatalogRepository(_context);
 
 	public async System.Threading.Tasks.Task<int> SaveChangesAsync()
     {
