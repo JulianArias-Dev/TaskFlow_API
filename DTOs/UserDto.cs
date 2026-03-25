@@ -115,4 +115,5 @@ public class LoginResponseDto
     public string Token { get; set; } = string.Empty;
     public bool LightTheme { get; set; } = true;
 	public DateTime ExpiresAt { get; set; }
+    public DateTime LastConnection { get; set; }
 }

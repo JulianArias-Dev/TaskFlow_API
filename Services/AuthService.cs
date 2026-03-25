@@ -54,9 +54,13 @@ public class AuthService : IAuthService
             _logger.LogWarning("Login attempt with invalid password for user: {Email}", loginDto.Email);
             return null;
         }
+		user.LastLoginAt = DateTime.UtcNow;
 
-        // Generar token JWT
-        var token = GenerateJwtToken(user);
+		// Persistimos el cambio en la base de datos
+		await _unitOfWork.SaveChangesAsync();
+
+		// Generar token JWT
+		var token = GenerateJwtToken(user);
 
         _logger.LogInformation("User {Email} logged in successfully", user.Email);
 
@@ -66,7 +70,9 @@ public class AuthService : IAuthService
             Email = user.Email,
             Name = user.Name,
             Role = user.AppRole.Name,
-            Token = token,
+            LightTheme = user.LightTheme,
+            LastConnection = user.LastLoginAt.Value,
+			Token = token,
             ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())
         };
     }
@@ -103,9 +109,14 @@ public class AuthService : IAuthService
         await _unitOfWork.Users.AddAsync(user);
         await _unitOfWork.SaveChangesAsync();
 
-		var userWithRole = await _unitOfWork.Users.GetByIdAsync(user.Id);
+		var userWithRole = await _unitOfWork.Users.GetByIdWithRoleAsync(user.Id);
 
 		_logger.LogInformation("User {Email} registered successfully", user.Email);
+
+        if(userWithRole != null)
+        userWithRole.LastLoginAt = DateTime.UtcNow;
+
+		await _unitOfWork.SaveChangesAsync();
 
 		// 4. Generar token JWT (Asegúrate de que esta función use userWithRole.Role.Name)
 		var token = GenerateJwtToken(userWithRole!);
@@ -118,6 +129,7 @@ public class AuthService : IAuthService
 			// ✅ CORRECCIÓN: Usamos el nombre descriptivo del catálogo
 			Role = userWithRole.AppRole?.Name ?? "CommonUser",
 			LightTheme = userWithRole.LightTheme,
+            LastConnection = userWithRole.LastLoginAt!.Value,
 			Token = token,
 			ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())
 		};
@@ -158,7 +170,7 @@ public class AuthService : IAuthService
             new(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(System.Security.Claims.ClaimTypes.Email, user.Email),
             new(System.Security.Claims.ClaimTypes.Name, user.Name),
-            new(System.Security.Claims.ClaimTypes.Role, user.AppRole.Name.ToString())
+            new(System.Security.Claims.ClaimTypes.Role, user.AppRole?.Name ?? "CommonUser")
         };
 
         var token = new JwtSecurityToken(

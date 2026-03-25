@@ -14,6 +14,7 @@ public interface IUserRepository : IRepository<User>
     System.Threading.Tasks.Task<IEnumerable<User>> GetUsersByProjectAsync(Guid projectId);
     System.Threading.Tasks.Task<bool> EmailExistsAsync(string email);
     System.Threading.Tasks.Task<int> GetProjectCountAsync(Guid userId);
+	System.Threading.Tasks.Task<User?> GetByIdWithRoleAsync(Guid id);
 }
 
 /// <summary>
@@ -26,10 +27,18 @@ public class UserRepository : Repository<User>, IUserRepository
     {
     }
 
-    public async System.Threading.Tasks.Task<User?> GetUserByEmailAsync(string email)
+    public async System.Threading.Tasks.Task<User?> GetByIdWithRoleAsync(Guid id)
     {
         return await _dbSet
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
+            .Include(u => u.AppRole)
+            .FirstOrDefaultAsync(u => u.Id == id);
+	}
+
+	public async System.Threading.Tasks.Task<User?> GetUserByEmailAsync(string email)
+    {
+        return await _dbSet
+            .Include(u => u.AppRole)
+			.FirstOrDefaultAsync(u => u.Email.ToLower() == email.ToLower());
     }
 
     public async System.Threading.Tasks.Task<IEnumerable<User>> GetUsersByProjectAsync(Guid projectId)
