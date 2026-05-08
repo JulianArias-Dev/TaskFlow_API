@@ -41,7 +41,7 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Comments, opt => opt.Ignore())
             .ForMember(dest => dest.Files, opt => opt.Ignore())
             .ForMember(dest => dest.SubTasks, opt => opt.Ignore())
-            .ForMember(dest => dest.TaskTags, opt => opt.Ignore());
+            .ForMember(dest => dest.TaskLabels, opt => opt.Ignore());
 
         // Project Mappings
         CreateMap<Project, ProjectDto>()
@@ -144,12 +144,12 @@ public class MappingProfile : Profile
 
         // Tag Mappings
         CreateMap<Tag, TagDto>()
-            .ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.TaskTags.Count));
+            .ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.TaskLabels.Count));
 
         CreateMap<CreateTagDto, Tag>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
-            .ForMember(dest => dest.TaskTags, opt => opt.Ignore())
+            .ForMember(dest => dest.TaskLabels, opt => opt.Ignore())
             .ForMember(dest => dest.Project, opt => opt.Ignore());
 
         // ProjectMember Mappings

@@ -3,8 +3,8 @@ using TaskFlow_API.Data;
 namespace TaskFlow_API.Repositories;
 
 /// <summary>
-/// Interfaz del patrón Unit of Work
-/// Coordina múltiples repositorios y gestiona transacciones
+/// Interfaz del patrï¿½n Unit of Work
+/// Coordina mï¿½ltiples repositorios y gestiona transacciones
 /// </summary>
 public interface IUnitOfWork : IDisposable
 {
@@ -16,11 +16,13 @@ public interface IUnitOfWork : IDisposable
     ICommentRepository Comments { get; }
     IFileRepository Files { get; }
     ITagRepository Tags { get; }
-    ITaskTagRepository TaskTags { get; }
+    ITaskLabelRepository TaskLabels { get; }
     IProjectMemberRepository ProjectMembers { get; }
     IAuditLogRepository AuditLogs { get; }
 	INotificationRepository Notifications { get; }
     ICatalogRepository Catalog { get; }
+    IRevokedTokenRepository RevokedTokens { get; }
+    ISavedFilterRepository SavedFilters { get; }
 
 	System.Threading.Tasks.Task<int> SaveChangesAsync();
     System.Threading.Tasks.Task<bool> BeginTransactionAsync();
@@ -29,7 +31,7 @@ public interface IUnitOfWork : IDisposable
 }
 
 /// <summary>
-/// Implementación del patrón Unit of Work
+/// Implementaciï¿½n del patrï¿½n Unit of Work
 /// Proporciona una forma centralizada de acceder a todos los repositorios
 /// </summary>
 public class UnitOfWork : IUnitOfWork
@@ -44,11 +46,13 @@ public class UnitOfWork : IUnitOfWork
     private ICommentRepository? _commentRepository;
     private IFileRepository? _fileRepository;
     private ITagRepository? _tagRepository;
-    private ITaskTagRepository? _taskTagRepository;
+    private ITaskLabelRepository? _taskLabelRepository;
     private IProjectMemberRepository? _projectMemberRepository;
     private IAuditLogRepository? _auditLogRepository;
 	private INotificationRepository? _notifications;
     private ICatalogRepository? _catalog;
+    private IRevokedTokenRepository? _revokedTokens;
+    private ISavedFilterRepository? _savedFilters;
 
 	public UnitOfWork(TaskFlowDbContext context)
     {
@@ -63,11 +67,13 @@ public class UnitOfWork : IUnitOfWork
     public ICommentRepository Comments => _commentRepository ??= new CommentRepository(_context);
     public IFileRepository Files => _fileRepository ??= new FileRepository(_context);
     public ITagRepository Tags => _tagRepository ??= new TagRepository(_context);
-    public ITaskTagRepository TaskTags => _taskTagRepository ??= new TaskTagRepository(_context);
+    public ITaskLabelRepository TaskLabels => _taskLabelRepository ??= new TaskLabelRepository(_context);
     public IProjectMemberRepository ProjectMembers => _projectMemberRepository ??= new ProjectMemberRepository(_context);
     public IAuditLogRepository AuditLogs => _auditLogRepository ??= new AuditLogRepository(_context);
 	public INotificationRepository Notifications => _notifications ??= new NotificationRepository(_context);
 	public ICatalogRepository Catalog => _catalog ??= new CatalogRepository(_context);
+    public IRevokedTokenRepository RevokedTokens => _revokedTokens ??= new RevokedTokenRepository(_context);
+    public ISavedFilterRepository SavedFilters => _savedFilters ??= new SavedFilterRepository(_context);
 
 	public async System.Threading.Tasks.Task<int> SaveChangesAsync()
     {

@@ -10,25 +10,31 @@ namespace TaskFlow_API.Models
         public int AppRoleId { get; set; }
         public AppRole AppRole { get; set; } = null!;
 
-        public bool LightTheme { get; set; } = true;
-
         public string? AvatarUrl { get; set; }
-        public bool AllowEmail { get; set; } = true;
 
-        // Metadata
+        // ----- Preferencias del usuario (alineadas al diagrama ER actualizado) -----
+
+        /// <summary>
+        /// Tema visual preferido. Se persiste como string vía HasConversion en
+        /// el DbContext, de modo que el cliente Angular/React reciba "Light" /
+        /// "Dark" / "System" listos para alimentar su Abstract Factory de UI.
+        /// </summary>
+        public ThemePreference ThemePreference { get; set; } = ThemePreference.Light;
+
+        /// <summary>Si el usuario quiere recibir notificaciones por email.</summary>
+        public bool NotifyByEmail { get; set; } = true;
+
+        // ----- Metadata -----
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? LastLoginAt { get; set; }
         public bool IsActive { get; set; } = true;
 
-        // Navigation Properties
-        public List<Project> OwnedProjects { get; set; } = new(); // Proyectos que el usuario posee
-        public List<TaskAssignment> Assignments { get; set; } = new(); // Tareas asignadas
+        // ----- Navegación -----
+        public List<Project> OwnedProjects { get; set; } = new();
+        public List<TaskAssignment> Assignments { get; set; } = new();
         public List<Comment> Comments { get; set; } = new();
-        public List<Notification> Notifications { get; set; } = new(); // Notificaciones del usuario
-
-        // Relaci�n Many-to-Many con Project (miembros de proyecto)
+        public List<Notification> Notifications { get; set; } = new();
         public List<ProjectMember> ProjectMemberships { get; set; } = new();
     }
 }
-

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow_API.Patterns.AbstractFactory;
 using TaskFlow_API.Services;
@@ -7,11 +8,12 @@ namespace TaskFlow_API.Controllers;
 /// <summary>
 /// Controller para gestionar temas visuales (Themes)
 /// Proporciona endpoints para obtener configuraciones de temas
-/// Utiliza el patrón Abstract Factory
+/// Utiliza el patrï¿½n Abstract Factory
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize]
 public class ThemesController : ControllerBase
 {
     private readonly IThemeService _themeService;
@@ -24,11 +26,11 @@ public class ThemesController : ControllerBase
     }
 
     /// <summary>
-    /// Obtiene la configuración de un tema específico
-    /// Utiliza el patrón Abstract Factory
+    /// Obtiene la configuraciï¿½n de un tema especï¿½fico
+    /// Utiliza el patrï¿½n Abstract Factory
     /// </summary>
     /// <param name="themeName">Nombre del tema (dark, light)</param>
-    /// <returns>Configuración del tema solicitado</returns>
+    /// <returns>Configuraciï¿½n del tema solicitado</returns>
     [HttpGet("{themeName}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -64,7 +66,7 @@ public class ThemesController : ControllerBase
     }
 
     /// <summary>
-    /// Obtiene información de temas disponibles
+    /// Obtiene informaciï¿½n de temas disponibles
     /// </summary>
     /// <returns>Lista de nombres de temas disponibles</returns>
     [HttpGet("info/available")]

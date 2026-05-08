@@ -18,13 +18,17 @@ public class TaskFlowDbContext : DbContext
     public DbSet<Comment> Comments { get; set; } = null!;
     public DbSet<FileEntity> Files { get; set; } = null!;
     public DbSet<Tag> Tags { get; set; } = null!;
-    public DbSet<TaskTag> TaskTags { get; set; } = null!;
+    public DbSet<TaskLabel> TaskLabels { get; set; } = null!;
+    public DbSet<PasswordPolicy> PasswordPolicies { get; set; } = null!;
+    public DbSet<AttachmentPolicy> AttachmentPolicies { get; set; } = null!;
     public DbSet<ProjectMember> ProjectMembers { get; set; } = null!;
     public DbSet<AuditLog> AuditLogs { get; set; } = null!;
     public DbSet<Notification> Notifications { get; set; } = null!;
 	public DbSet<TaskAssignment> TaskAssignments { get; set; } = null!;
+	public DbSet<RevokedToken> RevokedTokens { get; set; } = null!;
+	public DbSet<SavedFilter> SavedFilters { get; set; } = null!;
 
-	// DbSets de Catálogos (Nuevas Tablas)
+	// DbSets de Catï¿½logos (Nuevas Tablas)
 	public DbSet<TaskPriority> TaskPriorities { get; set; } = null!;
 	public DbSet<TaskFlow_API.Models.TaskStatus> TaskStatuses { get; set; } = null!;
 	public DbSet<TaskType> TaskTypes { get; set; } = null!;
@@ -42,36 +46,40 @@ public class TaskFlowDbContext : DbContext
 		// User Configuration
 		modelBuilder.Entity<User>(entity =>
 		{
-			// 1. Identificación y Claves
+			// 1. Identificaciï¿½n y Claves
 			entity.HasKey(u => u.Id);
 			entity.HasIndex(u => u.Email).IsUnique();
 
 			// 2. Propiedades y Valores por Defecto
-			entity.Property(u => u.AllowEmail)
+			entity.Property(u => u.NotifyByEmail)
 				  .HasDefaultValue(true);
 
-			entity.Property(u => u.LightTheme)
-				  .HasDefaultValue(true);
+			// ThemePreference: persistido como string ("Light" / "Dark" / "System")
+			// para que el cliente Angular/React pueda alimentar su Abstract Factory de UI sin mapeo extra.
+			entity.Property(u => u.ThemePreference)
+				  .HasConversion<string>()
+				  .HasMaxLength(20)
+				  .HasDefaultValue(ThemePreference.Light);
 
-			// 3. Relación con el Catálogo de Roles de Aplicación (Admin, CommonUser)
+			// 3. Relaciï¿½n con el Catï¿½logo de Roles de Aplicaciï¿½n (Admin, CommonUser)
 			entity.HasOne(u => u.AppRole)
 				  .WithMany() // No necesitamos una lista de usuarios en la tabla AppRole
 				  .HasForeignKey(u => u.AppRoleId)
 				  .OnDelete(DeleteBehavior.Restrict); // No borrar un rol si tiene usuarios
 
-			// 4. Relaciones de Propiedad (Proyectos que el usuario creó)
+			// 4. Relaciones de Propiedad (Proyectos que el usuario creï¿½)
 			entity.HasMany(u => u.OwnedProjects)
 				  .WithOne(p => p.Owner)
 				  .HasForeignKey(p => p.OwnerId)
 				  .OnDelete(DeleteBehavior.Restrict);
 
-			// 5. Relaciones de Participación (Membresías a proyectos)
+			// 5. Relaciones de Participaciï¿½n (Membresï¿½as a proyectos)
 			entity.HasMany(u => u.ProjectMemberships)
 				  .WithOne(pm => pm.User)
 				  .HasForeignKey(pm => pm.UserId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 6. Relaciones de Interacción (Comentarios y Notificaciones)
+			// 6. Relaciones de Interacciï¿½n (Comentarios y Notificaciones)
 			entity.HasMany(u => u.Comments)
 				  .WithOne(c => c.User)
 				  .HasForeignKey(c => c.UserId)
@@ -86,34 +94,34 @@ public class TaskFlowDbContext : DbContext
 		// Project Configuration
 		modelBuilder.Entity<Project>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(p => p.Id);
 
-			// 2. Relación con el Catálogo de Estados (Active, Archived, etc.)
+			// 2. Relaciï¿½n con el Catï¿½logo de Estados (Active, Archived, etc.)
 			entity.HasOne(p => p.Status)
 				  .WithMany() // No necesitamos la lista de proyectos en la tabla de estados
 				  .HasForeignKey(p => p.StatusId)
 				  .OnDelete(DeleteBehavior.Restrict);
 
-			// 3. Relación con el Propietario (User)
+			// 3. Relaciï¿½n con el Propietario (User)
 			entity.HasOne(p => p.Owner)
 				  .WithMany(u => u.OwnedProjects)
 				  .HasForeignKey(p => p.OwnerId)
 				  .OnDelete(DeleteBehavior.Restrict);
 
-			// 4. Tableros (Boards) - Eliminación en cascada
+			// 4. Tableros (Boards) - Eliminaciï¿½n en cascada
 			entity.HasMany(p => p.Boards)
 				  .WithOne(b => b.Project)
 				  .HasForeignKey(b => b.ProjectId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 5. Etiquetas del Proyecto (Tags) - Eliminación en cascada
+			// 5. Etiquetas del Proyecto (Tags) - Eliminaciï¿½n en cascada
 			entity.HasMany(p => p.Tags)
 				  .WithOne(t => t.Project)
 				  .HasForeignKey(t => t.ProjectId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 6. Miembros del Proyecto (ProjectMembers) - Eliminación en cascada
+			// 6. Miembros del Proyecto (ProjectMembers) - Eliminaciï¿½n en cascada
 			entity.HasMany(p => p.Members)
 				  .WithOne(pm => pm.Project)
 				  .HasForeignKey(pm => pm.ProjectId)
@@ -126,13 +134,13 @@ public class TaskFlowDbContext : DbContext
 			// 1. Clave Primaria
 			entity.HasKey(b => b.Id);
 
-			// 2. Relación con el Proyecto (Navegación inversa)
+			// 2. Relaciï¿½n con el Proyecto (Navegaciï¿½n inversa)
 			entity.HasOne(b => b.Project)
 				  .WithMany(p => p.Boards)
 				  .HasForeignKey(b => b.ProjectId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 3. Relación con sus Columnas
+			// 3. Relaciï¿½n con sus Columnas
 			entity.HasMany(b => b.Columns)
 				  .WithOne(c => c.Board)
 				  .HasForeignKey(c => c.BoardId)
@@ -142,16 +150,16 @@ public class TaskFlowDbContext : DbContext
 		// Column Configuration
 		modelBuilder.Entity<Column>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(c => c.Id);
 
-			// 2. Relación con el Tablero (Board)
+			// 2. Relaciï¿½n con el Tablero (Board)
 			entity.HasOne(c => c.Board)
 				  .WithMany(b => b.Columns)
 				  .HasForeignKey(c => c.BoardId)
 				  .OnDelete(DeleteBehavior.Cascade); // Si se elimina el tablero, se eliminan sus columnas
 
-			// 3. Relación con sus Tareas (Tasks)
+			// 3. Relaciï¿½n con sus Tareas (Tasks)
 			entity.HasMany(c => c.Tasks)
 				  .WithOne(t => t.Column)
 				  .HasForeignKey(t => t.ColumnId)
@@ -169,12 +177,12 @@ public class TaskFlowDbContext : DbContext
 		// Task Configuration
 		modelBuilder.Entity<TaskEntity>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(t => t.Id);
 
-			// 2. Relaciones con Catálogos (Nuevas tablas dinámicas)
+			// 2. Relaciones con Catï¿½logos (Nuevas tablas dinï¿½micas)
 			// Usamos Restrict porque no queremos que se borre una "Prioridad" o "Estado" 
-			// si todavía hay tareas que los usan.
+			// si todavï¿½a hay tareas que los usan.
 			entity.HasOne(t => t.Priority)
 				  .WithMany()
 				  .HasForeignKey(t => t.PriorityId)
@@ -196,13 +204,13 @@ public class TaskFlowDbContext : DbContext
 				  .HasForeignKey(t => t.ParentTaskId)
 				  .OnDelete(DeleteBehavior.Restrict); // Evita borrar una tarea padre si tiene hijos
 
-			// 4. Relación con la Columna
+			// 4. Relaciï¿½n con la Columna
 			entity.HasOne(t => t.Column)
 				  .WithMany(c => c.Tasks)
 				  .HasForeignKey(t => t.ColumnId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 5. Colecciones e Interacciones (Eliminación en Cascada)
+			// 5. Colecciones e Interacciones (Eliminaciï¿½n en Cascada)
 			entity.HasMany(t => t.Comments)
 				  .WithOne(c => c.Task)
 				  .HasForeignKey(c => c.TaskId)
@@ -213,31 +221,31 @@ public class TaskFlowDbContext : DbContext
 				  .HasForeignKey(f => f.TaskId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			entity.HasMany(t => t.TaskTags)
-				  .WithOne(tt => tt.Task)
-				  .HasForeignKey(tt => tt.TaskId)
+			entity.HasMany(t => t.TaskLabels)
+				  .WithOne(tl => tl.Task)
+				  .HasForeignKey(tl => tl.TaskId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 6. Relación con Responsables (N:M a través de TaskAssignment)
+			// 6. Relaciï¿½n con Responsables (N:M a travï¿½s de TaskAssignment)
 			entity.HasMany(t => t.Assignments)
 				  .WithOne(ta => ta.Task)
 				  .HasForeignKey(ta => ta.TaskId)
 				  .OnDelete(DeleteBehavior.Cascade);
 		});
 
-		// Configuración de la relación N:M para Responsables
+		// Configuraciï¿½n de la relaciï¿½n N:M para Responsables
 		modelBuilder.Entity<TaskAssignment>(entity =>
 		{
 			// 1. Clave Primaria Compuesta
 			entity.HasKey(ta => new { ta.TaskId, ta.UserId });
 
-			// 2. Relación con la Tarea (Task)
+			// 2. Relaciï¿½n con la Tarea (Task)
 			entity.HasOne(ta => ta.Task)
 				  .WithMany(t => t.Assignments)
 				  .HasForeignKey(ta => ta.TaskId)
 				  .OnDelete(DeleteBehavior.Cascade);
 
-			// 3. Relación con el Usuario (User)
+			// 3. Relaciï¿½n con el Usuario (User)
 			entity.HasOne(ta => ta.User)
 				  .WithMany(u => u.Assignments)
 				  .HasForeignKey(ta => ta.UserId)
@@ -251,10 +259,10 @@ public class TaskFlowDbContext : DbContext
 		// Comment Configuration
 		modelBuilder.Entity<Comment>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(c => c.Id);
 
-			// 2. Contenido y Auditoría
+			// 2. Contenido y Auditorï¿½a
 			entity.Property(c => c.Content)
 				  .IsRequired()
 				  .HasMaxLength(1000); // Limite razonable para comentarios
@@ -262,13 +270,13 @@ public class TaskFlowDbContext : DbContext
 			entity.Property(c => c.CreatedAt)
 				  .HasDefaultValueSql("GETUTCDATE()");
 
-			// 3. Relación con el Autor (User)
+			// 3. Relaciï¿½n con el Autor (User)
 			entity.HasOne(c => c.User)
 				  .WithMany(u => u.Comments)
 				  .HasForeignKey(c => c.UserId)
 				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el usuario, se borran sus comentarios
 
-			// 4. Relación con la Tarea (Task)
+			// 4. Relaciï¿½n con la Tarea (Task)
 			entity.HasOne(c => c.Task)
 				  .WithMany(t => t.Comments)
 				  .HasForeignKey(c => c.TaskId)
@@ -278,7 +286,7 @@ public class TaskFlowDbContext : DbContext
 		// File Configuration
 		modelBuilder.Entity<FileEntity>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(f => f.Id);
 
 			// 2. Metadatos del Archivo
@@ -292,13 +300,13 @@ public class TaskFlowDbContext : DbContext
 			entity.Property(f => f.CreatedAt)
 				  .HasDefaultValueSql("GETUTCDATE()");
 
-			// 3. Relación con la Tarea (Task)
+			// 3. Relaciï¿½n con la Tarea (Task)
 			entity.HasOne(f => f.Task)
 				  .WithMany(t => t.Files)
 				  .HasForeignKey(f => f.TaskId)
 				  .OnDelete(DeleteBehavior.Cascade); // Si se borra la tarea, se borran sus adjuntos
 
-			// 4. Relación con el Autor de la subida (User)
+			// 4. Relaciï¿½n con el Autor de la subida (User)
 			entity.HasOne(f => f.UploadedBy)
 				  .WithMany() // No necesitamos la lista de archivos dentro del modelo User
 				  .HasForeignKey(f => f.UploadedByUserId)
@@ -308,7 +316,7 @@ public class TaskFlowDbContext : DbContext
 		// Tag Configuration
 		modelBuilder.Entity<Tag>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(t => t.Id);
 
 			// 2. Propiedades de la Etiqueta
@@ -319,58 +327,116 @@ public class TaskFlowDbContext : DbContext
 			entity.Property(t => t.Color)
 				  .HasMaxLength(7); // Para guardar el Hexadecimal (ej: #FF5733)
 
-			// 3. Relación con el Proyecto
+			entity.Property(t => t.Description)
+				  .HasMaxLength(250);
+
+			// 3. Relaciï¿½n con el Proyecto
 			entity.HasOne(t => t.Project)
 				  .WithMany(p => p.Tags)
 				  .HasForeignKey(t => t.ProjectId)
 				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el proyecto, se borran sus etiquetas
 		});
 
-		// TaskTag Configuration (Relación N:M)
-		modelBuilder.Entity<TaskTag>(entity =>
+		// TaskLabel â€” tabla intermedia que rompe la relaciÃ³n N:M Task <-> Tag
+		modelBuilder.Entity<TaskLabel>(entity =>
 		{
-			// 1. Identificación
-			entity.HasKey(tt => tt.Id);
+			entity.ToTable("TaskLabels");
 
-			// 2. Relación con la Tarea
-			entity.HasOne(tt => tt.Task)
-				  .WithMany(t => t.TaskTags)
-				  .HasForeignKey(tt => tt.TaskId)
-				  .OnDelete(DeleteBehavior.Cascade); // Si se borra la tarea, se quita la relación con el tag
+			// 1. PK compuesta â€” evita duplicados (TaskId + TagId Ãºnica).
+			entity.HasKey(tl => new { tl.TaskId, tl.TagId });
 
-			// 3. Relación con la Etiqueta (Tag)
-			entity.HasOne(tt => tt.Tag)
-				  .WithMany(t => t.TaskTags)
-				  .HasForeignKey(tt => tt.TagId)
-				  .OnDelete(DeleteBehavior.Restrict); // No borrar el Tag si está en uso
+			// 2. FK a Task con cascade (si se borra la tarea, sus labels tambiÃ©n).
+			entity.HasOne(tl => tl.Task)
+				  .WithMany(t => t.TaskLabels)
+				  .HasForeignKey(tl => tl.TaskId)
+				  .OnDelete(DeleteBehavior.Cascade);
+
+			// 3. FK a Tag con restrict (no permitir borrar un Tag en uso).
+			entity.HasOne(tl => tl.Tag)
+				  .WithMany(t => t.TaskLabels)
+				  .HasForeignKey(tl => tl.TagId)
+				  .OnDelete(DeleteBehavior.Restrict);
+
+			// 4. AuditorÃ­a â€” fecha en la que se asignÃ³ la etiqueta a la tarea.
+			entity.Property(tl => tl.AssignedAt)
+				  .HasDefaultValueSql("GETUTCDATE()");
 		});
 
-		// ProjectMember Configuration (Relación N:M con información adicional)
+		// PasswordPolicy â€” polÃ­tica global del sistema (singleton lÃ³gico).
+		modelBuilder.Entity<PasswordPolicy>(entity =>
+		{
+			entity.ToTable("PasswordPolicies");
+			entity.HasKey(p => p.PolicyId);
+			entity.Property(p => p.PolicyId).ValueGeneratedOnAdd();
+
+			entity.Property(p => p.MinLength).HasDefaultValue(8);
+			entity.Property(p => p.MaxLength).HasDefaultValue(64);
+			entity.Property(p => p.MinUpperChars).HasDefaultValue(1);
+			entity.Property(p => p.MinSpecialChars).HasDefaultValue(1);
+			entity.Property(p => p.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+			// Seed â€” fila por defecto creada en la migraciÃ³n inicial.
+			entity.HasData(new PasswordPolicy
+			{
+				PolicyId = 1,
+				MinLength = 8,
+				MaxLength = 64,
+				MinUpperChars = 1,
+				MinSpecialChars = 1,
+				UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+			});
+		});
+
+		// AttachmentPolicy â€” polÃ­tica global para adjuntos.
+		modelBuilder.Entity<AttachmentPolicy>(entity =>
+		{
+			entity.ToTable("AttachmentPolicies");
+			entity.HasKey(p => p.PolicyId);
+			entity.Property(p => p.PolicyId).ValueGeneratedOnAdd();
+
+			entity.Property(p => p.MaxSizeMB).HasDefaultValue(10);
+			entity.Property(p => p.MaxFilesByTask).HasDefaultValue(20);
+			entity.Property(p => p.AllowedFormats)
+				  .IsRequired()
+				  .HasMaxLength(500);
+			entity.Property(p => p.UpdatedAt).HasDefaultValueSql("GETUTCDATE()");
+
+			entity.HasData(new AttachmentPolicy
+			{
+				PolicyId = 1,
+				MaxSizeMB = 10,
+				MaxFilesByTask = 20,
+				AllowedFormats = "pdf,png,jpg,jpeg,gif,docx,xlsx,pptx,txt,zip",
+				UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+			});
+		});
+
+		// ProjectMember Configuration (Relaciï¿½n N:M con informaciï¿½n adicional)
 		modelBuilder.Entity<ProjectMember>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(pm => pm.Id);
 
-			// 2. Relación con el Catálogo de Roles de Proyecto (Creator, PM, Developer)
-			// Usamos Restrict para no poder borrar un "Rol" si hay gente asignada a él.
+			// 2. Relaciï¿½n con el Catï¿½logo de Roles de Proyecto (Creator, PM, Developer)
+			// Usamos Restrict para no poder borrar un "Rol" si hay gente asignada a ï¿½l.
 			entity.HasOne(pm => pm.ProjectRole)
 				  .WithMany() // No necesitamos la lista de miembros en la tabla ProjectRole
 				  .HasForeignKey(pm => pm.ProjectRoleId)
 				  .OnDelete(DeleteBehavior.Restrict);
 
-			// 3. Relación con el Proyecto
+			// 3. Relaciï¿½n con el Proyecto
 			entity.HasOne(pm => pm.Project)
 				  .WithMany(p => p.Members)
 				  .HasForeignKey(pm => pm.ProjectId)
-				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el proyecto, se borran las membresías
+				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el proyecto, se borran las membresï¿½as
 
-			// 4. Relación con el Usuario (User)
+			// 4. Relaciï¿½n con el Usuario (User)
 			entity.HasOne(pm => pm.User)
 				  .WithMany(u => u.ProjectMemberships)
 				  .HasForeignKey(pm => pm.UserId)
 				  .OnDelete(DeleteBehavior.Cascade); // Si se borra el usuario, sale de todos los proyectos
 
-			// 5. Auditoría de Membresía
+			// 5. Auditorï¿½a de Membresï¿½a
 			entity.Property(pm => pm.JoinedAt)
 				  .HasDefaultValueSql("GETUTCDATE()");
 		});
@@ -379,17 +445,17 @@ public class TaskFlowDbContext : DbContext
 		// AuditLog Configuration (Sin FK estrictas)
 		modelBuilder.Entity<AuditLog>(entity =>
 		{
-			// 1. Identificación
+			// 1. Identificaciï¿½n
 			entity.HasKey(al => al.Id);
 
-			// 2. Índices para Optimización de Consultas
-			// Estos son críticos porque la tabla de auditoría suele crecer mucho
+			// 2. ï¿½ndices para Optimizaciï¿½n de Consultas
+			// Estos son crï¿½ticos porque la tabla de auditorï¿½a suele crecer mucho
 			entity.HasIndex(al => al.EntityType);
 			entity.HasIndex(al => al.EntityId);
 			entity.HasIndex(al => al.CreatedAt);
-			entity.HasIndex(al => al.UserId); // Recomendado para filtrar por "quién hizo qué"
+			entity.HasIndex(al => al.UserId); // Recomendado para filtrar por "quiï¿½n hizo quï¿½"
 
-			// 3. Configuración de Propiedades
+			// 3. Configuraciï¿½n de Propiedades
 			entity.Property(al => al.Action)
 				  .IsRequired()
 				  .HasMaxLength(100); // Ej: "CREATE", "UPDATE", "DELETE"
@@ -407,11 +473,37 @@ public class TaskFlowDbContext : DbContext
 			entity.Property(al => al.CreatedAt)
 				  .HasDefaultValueSql("GETUTCDATE()");
 
-			// 4. Relación con el Usuario (Opcional, pero útil)
+			// 4. Relaciï¿½n con el Usuario (Opcional, pero ï¿½til)
 			entity.HasOne(al => al.User)
 				  .WithMany()
 				  .HasForeignKey(al => al.UserId)
 				  .OnDelete(DeleteBehavior.SetNull); // Si el usuario se borra, el log permanece
+		});
+
+		// RevokedToken Configuration (JWT blacklist)
+		modelBuilder.Entity<RevokedToken>(entity =>
+		{
+			entity.HasKey(rt => rt.Id);
+			entity.HasIndex(rt => rt.TokenId).IsUnique();
+			entity.HasIndex(rt => rt.ExpiresAt); // Ãºtil para purgas
+			entity.Property(rt => rt.TokenId)
+				  .IsRequired()
+				  .HasMaxLength(512);
+			entity.Property(rt => rt.Reason).HasMaxLength(200);
+			entity.Property(rt => rt.RevokedAt).HasDefaultValueSql("GETUTCDATE()");
+		});
+
+		// SavedFilter Configuration (RF-07.3)
+		modelBuilder.Entity<SavedFilter>(entity =>
+		{
+			entity.HasKey(sf => sf.Id);
+			entity.Property(sf => sf.Name).IsRequired().HasMaxLength(100);
+			entity.Property(sf => sf.FilterCriteria).IsRequired().HasColumnType("nvarchar(max)");
+			entity.Property(sf => sf.CreatedAt).HasDefaultValueSql("GETUTCDATE()");
+			entity.HasOne(sf => sf.User)
+				  .WithMany()
+				  .HasForeignKey(sf => sf.UserId)
+				  .OnDelete(DeleteBehavior.Cascade);
 		});
 
 		modelBuilder.Entity<Notification>(entity =>
@@ -429,7 +521,7 @@ public class TaskFlowDbContext : DbContext
 			entity.Property(n => n.CreatedAt)
 				  .HasDefaultValueSql("GETUTCDATE()");
 
-			// Relación Uno a Muchos (Un usuario tiene muchas notificaciones)
+			// Relaciï¿½n Uno a Muchos (Un usuario tiene muchas notificaciones)
 			entity.HasOne(n => n.User)
 				  .WithMany(u => u.Notifications)
 				  .HasForeignKey(n => n.UserId)

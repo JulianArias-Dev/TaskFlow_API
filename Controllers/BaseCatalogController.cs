@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow_API.DTOs;
 using TaskFlow_API.Services;
@@ -7,6 +8,7 @@ namespace TaskFlow_API.Controllers
 {
 	[Route("api/[controller]")]
 	[ApiController]
+	[Authorize]
 	public class BaseCatalogController : ControllerBase
 	{
 		private readonly IBaseCatalogService _catalogService;

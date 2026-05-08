@@ -5,12 +5,18 @@ using System.Text;
 using TaskFlow_API.Data;
 using TaskFlow_API.Mappings;
 using TaskFlow_API.Middleware;
+using TaskFlow_API.Patterns.Adapter;
+using TaskFlow_API.Patterns.Facade;
+using TaskFlow_API.Patterns.Flyweight;
+using TaskFlow_API.Patterns.Proxy;
 using TaskFlow_API.Repositories;
 using TaskFlow_API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container
+// ----------------------------------------------------------------------
+// Servicios ASP.NET base
+// ----------------------------------------------------------------------
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddSwaggerGen(c =>
@@ -19,26 +25,53 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "TaskFlow API",
         Version = "v1.0",
-        Description = "API REST para gestión de tareas Kanban con .NET 9"
+        Description = "API REST para gestiÃ³n de tareas Kanban con .NET 9 + patrones de diseÃ±o"
+    });
+
+    // Soporte para Bearer JWT en Swagger
+    c.AddSecurityDefinition("Bearer", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+    {
+        Description = "Ingrese: Bearer {token}",
+        Name = "Authorization",
+        In = Microsoft.OpenApi.Models.ParameterLocation.Header,
+        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
+        Scheme = "Bearer"
+    });
+    c.AddSecurityRequirement(new Microsoft.OpenApi.Models.OpenApiSecurityRequirement
+    {
+        {
+            new Microsoft.OpenApi.Models.OpenApiSecurityScheme
+            {
+                Reference = new Microsoft.OpenApi.Models.OpenApiReference
+                {
+                    Type = Microsoft.OpenApi.Models.ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
-// Entity Framework Core - SQL Server
+builder.Services.AddHttpContextAccessor();
+
+// ----------------------------------------------------------------------
+// Entity Framework Core
+// ----------------------------------------------------------------------
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<TaskFlowDbContext>(options =>
     options.UseSqlServer(connectionString, sqlServerOptions =>
         sqlServerOptions.EnableRetryOnFailure(3)),
     ServiceLifetime.Scoped);
 
-// Health Checks
-// En la sección de servicios
 builder.Services.AddHealthChecks()
-	.AddDbContextCheck<TaskFlowDbContext>("Database"); // .NET ya sabe cómo probar el DbContext solo
+    .AddDbContextCheck<TaskFlowDbContext>("Database");
 
-// AutoMapper Configuration
 builder.Services.AddAutoMapper(typeof(MappingProfile));
 
-// Register Repositories and Unit of Work
+// ----------------------------------------------------------------------
+// Repositorios + Unit of Work
+// ----------------------------------------------------------------------
 builder.Services.AddScoped<ITaskRepository, TaskRepository>();
 builder.Services.AddScoped<IProjectRepository, ProjectRepository>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
@@ -47,15 +80,18 @@ builder.Services.AddScoped<IColumnRepository, ColumnRepository>();
 builder.Services.AddScoped<ICommentRepository, CommentRepository>();
 builder.Services.AddScoped<IFileRepository, FileRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
-builder.Services.AddScoped<ITaskTagRepository, TaskTagRepository>();
+builder.Services.AddScoped<ITaskLabelRepository, TaskLabelRepository>();
 builder.Services.AddScoped<IProjectMemberRepository, ProjectMemberRepository>();
 builder.Services.AddScoped<IAuditLogRepository, AuditLogRepository>();
 builder.Services.AddScoped<INotificationRepository, NotificationRepository>();
 builder.Services.AddScoped<ICatalogRepository, CatalogRepository>();
+builder.Services.AddScoped<IRevokedTokenRepository, RevokedTokenRepository>();
+builder.Services.AddScoped<ISavedFilterRepository, SavedFilterRepository>();
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 
-// Register Services
-builder.Services.AddScoped<ITaskService, TaskService>();
+// ----------------------------------------------------------------------
+// Servicios de dominio
+// ----------------------------------------------------------------------
 builder.Services.AddScoped<IProjectService, ProjectService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<IBoardService, BoardService>();
@@ -68,77 +104,110 @@ builder.Services.AddScoped<IThemeService, ThemeService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IBaseCatalogService, BaseCatalogService>();
+builder.Services.AddScoped<ISavedFilterService, SavedFilterService>();
+builder.Services.AddScoped<IReportService, ReportService>();
 
+// JWT Blacklist â€” Singleton para que el cache en memoria se comparta globalmente
+builder.Services.AddSingleton<ITokenBlacklistService, TokenBlacklistService>();
+
+// ----------------------------------------------------------------------
+// Patrones estructurales
+// ----------------------------------------------------------------------
+// ADAPTER â€” registramos los adapters concretos. NotificationService los recibe
+// como IEnumerable<INotificationAdapter> e itera por todos los aplicables.
+builder.Services.AddScoped<INotificationAdapter, InAppNotificationAdapter>();
+builder.Services.AddScoped<INotificationAdapter, SmtpEmailNotificationAdapter>();
+builder.Services.AddScoped<INotificationAdapter, SendGridNotificationAdapter>();
+
+// FACADE â€” orquesta servicios + Composite para el dashboard.
+builder.Services.AddScoped<IProjectFacade, ProjectFacade>();
+
+// FLYWEIGHT â€” Singleton para que el cache de metadata sea global a la app.
+builder.Services.AddSingleton<ITaskFlyweightFactory, TaskFlyweightFactory>();
+
+// PROXY â€” sustituye a TaskService como implementaciÃ³n de ITaskService.
+//   1) Registramos la implementaciÃ³n real con su tipo concreto.
+//   2) Registramos ITaskService apuntando al Proxy, que internamente usa el real.
+builder.Services.AddScoped<TaskService>();
+builder.Services.AddScoped<ITaskService>(sp =>
+{
+    var real = sp.GetRequiredService<TaskService>();
+    return new TaskServiceProxy(
+        real,
+        sp.GetRequiredService<IUnitOfWork>(),
+        sp.GetRequiredService<IHttpContextAccessor>(),
+        sp.GetRequiredService<ILogger<TaskServiceProxy>>());
+});
+
+// ----------------------------------------------------------------------
+// Email + JWT settings
+// ----------------------------------------------------------------------
 builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
 
-// JWT Authentication Configuration
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
 var key = Encoding.ASCII.GetBytes(secretKey);
 
 builder.Services
-	.AddAuthentication(options =>
-	{
-		options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-		options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-	})
-	.AddJwtBearer(options =>
-	{
-		options.TokenValidationParameters = new TokenValidationParameters
-		{
-			ValidateIssuerSigningKey = true,
-			IssuerSigningKey = new SymmetricSecurityKey(key),
-			ValidateIssuer = true,
-			ValidIssuer = jwtSettings["Issuer"],
-			ValidateAudience = true,
-			ValidAudience = jwtSettings["Audience"],
-			ValidateLifetime = true,
-			ClockSkew = TimeSpan.Zero // Crucial para que expire exactamente al segundo
-		};
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(key),
+            ValidateIssuer = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidateAudience = true,
+            ValidAudience = jwtSettings["Audience"],
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.Zero
+        };
 
-		options.Events = new JwtBearerEvents
-		{
-			OnAuthenticationFailed = context =>
-			{
-				if (context.Exception is SecurityTokenExpiredException)
-				{
-					// CORRECCIÓN: Usar el indexador para evitar el ArgumentException
-					context.Response.Headers["X-Token-Expired"] = "true";
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                if (context.Exception is SecurityTokenExpiredException)
+                {
+                    context.Response.Headers["X-Token-Expired"] = "true";
+                    context.Response.Headers["Access-Control-Expose-Headers"] = "X-Token-Expired";
+                }
+                return System.Threading.Tasks.Task.CompletedTask;
+            }
+        };
+    });
 
-					// TIP: Si usas CORS, debes exponer la cabecera para que el Frontend (Angular) pueda verla
-					context.Response.Headers["Access-Control-Expose-Headers"] = "X-Token-Expired";
-				}
-				return System.Threading.Tasks.Task.CompletedTask;
-			}
-		};
-	});
-
-// Authorization policies
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
     .AddPolicy("ManagerOrAdmin", policy => policy.RequireRole("Admin", "Manager"))
     .AddPolicy("DeveloperOrHigher", policy => policy.RequireRole("Admin", "Manager", "Developer"));
 
-builder.Services.AddCors(options => {
-	options.AddPolicy("AllowAll", policy => {
-		policy.AllowAnyOrigin()
-			  .AllowAnyHeader()
-			  .WithMethods("GET", "POST", "PUT", "DELETE"); // ¡Asegúrate de que PUT esté aquí!
-	});
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyHeader()
+              .WithMethods("GET", "POST", "PUT", "DELETE", "PATCH");
+    });
 });
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline
-// Middleware de manejo de excepciones global
+// ----------------------------------------------------------------------
+// Pipeline HTTP
+// ----------------------------------------------------------------------
 app.UseGlobalExceptionHandler();
-
 app.UseCors("AllowAll");
-
 app.UseHttpsRedirection();
 
-// Authentication and Authorization middleware
 app.UseAuthentication();
+app.UseJwtBlacklist();   // Verifica blacklist DESPUÃ‰S de autenticar
 app.UseAuthorization();
 
 if (app.Environment.IsDevelopment())
@@ -152,10 +221,8 @@ if (app.Environment.IsDevelopment())
     });
 }
 
-// Health Check endpoint at root
 app.MapHealthChecks("/health");
 
-// Root endpoint
 app.MapGet("/", () => new
 {
     service = "TaskFlow API",
@@ -165,5 +232,12 @@ app.MapGet("/", () => new
 });
 
 app.MapControllers();
+
+// Calienta el cache de la blacklist con los tokens persistidos antes de aceptar trÃ¡fico.
+using (var scope = app.Services.CreateScope())
+{
+    var blacklist = scope.ServiceProvider.GetRequiredService<ITokenBlacklistService>();
+    await blacklist.LoadFromDatabaseAsync();
+}
 
 app.Run();

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow_API.DTOs;
 using TaskFlow_API.Services;
@@ -5,7 +6,7 @@ using TaskFlow_API.Services;
 namespace TaskFlow_API.Controllers;
 
 /// <summary>
-/// Controller para autenticaci�n y autorizaci�n
+/// Controller para autenticación y autorización
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -13,18 +14,22 @@ namespace TaskFlow_API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ITokenBlacklistService _blacklist;
     private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService, ILogger<AuthController> logger)
+    public AuthController(
+        IAuthService authService,
+        ITokenBlacklistService blacklist,
+        ILogger<AuthController> logger)
     {
         _authService = authService;
+        _blacklist = blacklist;
         _logger = logger;
     }
 
-    /// <summary>
-    /// Inicia sesi�n y devuelve JWT token
-    /// </summary>
+    /// <summary>Inicia sesión y devuelve JWT token (público).</summary>
     [HttpPost("login")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ResponseDto<LoginResponseDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
@@ -44,7 +49,7 @@ public class AuthController : ControllerBase
                 _logger.LogWarning("Login failed for email: {Email}", loginDto.Email);
                 return Unauthorized(ResponseDto.ErrorResponse(
                     "Invalid email or password",
-                    new List<string> { "Las credenciales proporcionadas son inv�lidas" }, 401));
+                    new List<string> { "Las credenciales proporcionadas son inválidas" }, 401));
             }
 
             _logger.LogInformation("User {Email} logged in successfully", loginDto.Email);
@@ -57,10 +62,9 @@ public class AuthController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Registra un nuevo usuario
-    /// </summary>
+    /// <summary>Registra un nuevo usuario (público).</summary>
     [HttpPost("register")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ResponseDto<LoginResponseDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status409Conflict)]
@@ -76,7 +80,7 @@ public class AuthController : ControllerBase
         {
             var result = await _authService.RegisterAsync(registerDto);
             _logger.LogInformation("User {Email} registered successfully", registerDto.Email);
-            return CreatedAtAction(nameof(Login), null, 
+            return CreatedAtAction(nameof(Login), null,
                 ResponseDto<LoginResponseDto>.SuccessResponse(result!, "User registered successfully"));
         }
         catch (InvalidOperationException ex)
@@ -91,11 +95,9 @@ public class AuthController : ControllerBase
         }
     }
 
-    /// <summary>
-    /// Valida el token JWT actual
-    /// </summary>
+    /// <summary>Valida el token JWT actual.</summary>
     [HttpGet("validate")]
-    [Microsoft.AspNetCore.Authorization.Authorize]
+    [Authorize]
     [ProducesResponseType(typeof(ResponseDto<object>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
     public ActionResult<ResponseDto<object>> ValidateToken()
@@ -107,7 +109,7 @@ public class AuthController : ControllerBase
 
         if (string.IsNullOrEmpty(userId))
         {
-            return Unauthorized(ResponseDto.ErrorResponse("Invalid or expired token", 
+            return Unauthorized(ResponseDto.ErrorResponse("Invalid or expired token",
                 new List<string> { "Token is invalid or has expired" }, 401));
         }
 
@@ -122,5 +124,35 @@ public class AuthController : ControllerBase
         };
 
         return Ok(ResponseDto<object>.SuccessResponse(tokenInfo, "Token is valid"));
+    }
+
+    /// <summary>
+    /// Cierra sesión revocando el token JWT (lo añade a la blacklist).
+    /// Real logout — el token deja de ser válido aunque su expiración no haya llegado.
+    /// </summary>
+    [HttpPost("logout")]
+    [Authorize]
+    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
+    public async Task<ActionResult<ResponseDto>> Logout()
+    {
+        var authHeader = Request.Headers.Authorization.ToString();
+        if (string.IsNullOrEmpty(authHeader) || !authHeader.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+        {
+            return Unauthorized(ResponseDto.ErrorResponse("No bearer token present", null, 401));
+        }
+
+        var token = authHeader.Substring("Bearer ".Length).Trim();
+        var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(userIdClaim, out var userId))
+        {
+            return Unauthorized(ResponseDto.ErrorResponse("Invalid token", null, 401));
+        }
+
+        await _blacklist.RevokeAsync(token, userId, "User logout");
+        _logger.LogInformation("User {UserId} logged out and token revoked", userId);
+
+        return Ok(ResponseDto.SuccessResponse("Logout successful — token revoked"));
     }
 }

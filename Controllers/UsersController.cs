@@ -9,11 +9,12 @@ namespace TaskFlow_API.Controllers;
 
 /// <summary>
 /// Controller para gestionar operaciones de usuarios (Users)
-/// Proporciona endpoints CRUD y operaciones de gestión de usuarios
+/// Proporciona endpoints CRUD y operaciones de gestiï¿½n de usuarios
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
 [Produces("application/json")]
+[Authorize]
 public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
@@ -78,7 +79,7 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
-    /// Obtiene usuarios que pertenecen a un proyecto específico
+    /// Obtiene usuarios que pertenecen a un proyecto especï¿½fico
     /// </summary>
     /// <param name="projectId">ID del proyecto</param>
     /// <returns>Lista de usuarios del proyecto</returns>
@@ -95,7 +96,7 @@ public class UsersController : ControllerBase
     /// </summary>
     /// <param name="email">Email del usuario</param>
     /// <param name="name">Nombre del usuario</param>
-    /// <param name="passwordHash">Hash de la contraseña</param>
+    /// <param name="passwordHash">Hash de la contraseï¿½a</param>
     /// <param name="avatar">Avatar/imagen del usuario (opcional)</param>
     /// <returns>Usuario creado</returns>
     [HttpPost]
@@ -162,7 +163,7 @@ public class UsersController : ControllerBase
     /// Elimina un usuario
     /// </summary>
     /// <param name="id">ID del usuario a eliminar</param>
-    /// <returns>Confirmación de eliminación</returns>
+    /// <returns>Confirmaciï¿½n de eliminaciï¿½n</returns>
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -217,14 +218,14 @@ public class UsersController : ControllerBase
 
 		var userId = Guid.Parse(userIdClaim);
 
-		// Consulta directa (puedes moverla al service si tienes tiempo, si no, así es más rápido)
+		// Consulta directa (puedes moverla al service si tienes tiempo, si no, asï¿½ es mï¿½s rï¿½pido)
 		var notifications = await _notificationService.GetUserNotificationsAsync(userId);
 
 		return Ok(notifications);
 	}
 
 	/// <summary>
-	///  Marca la notificación como leída
+	///  Marca la notificaciï¿½n como leï¿½da
 	/// </summary>
 	[HttpPost("notifications/{id}/read")]
 	[Authorize]

@@ -9,24 +9,24 @@ namespace TaskFlow_API.DTOs;
 public class CreateUserDto
 {
 	[Required(ErrorMessage = "El email es requerido")]
-	[EmailAddress(ErrorMessage = "El formato del email es inválido")]
+	[EmailAddress(ErrorMessage = "El formato del email es invï¿½lido")]
 	public string Email { get; set; } = string.Empty;
 
 	[Required(ErrorMessage = "El nombre es requerido")]
 	[StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
 	public string Name { get; set; } = string.Empty;
 
-	[Required(ErrorMessage = "La contraseña es requerida")]
-	[StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
+	[Required(ErrorMessage = "La contraseï¿½a es requerida")]
+	[StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseï¿½a debe tener al menos 8 caracteres")]
 	[RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$",
-		ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
+		ErrorMessage = "La contraseï¿½a debe contener mayï¿½sculas, minï¿½sculas, nï¿½meros y caracteres especiales")]
 	public string Password { get; set; } = string.Empty;
 
-	[Url(ErrorMessage = "La URL del avatar es inválida")]
+	[Url(ErrorMessage = "La URL del avatar es invï¿½lida")]
 	public string? AvatarUrl { get; set; }
 
 	[Required(ErrorMessage = "El ID de rol es requerido")]
-	[Range(1, int.MaxValue, ErrorMessage = "ID de rol inválido")]
+	[Range(1, int.MaxValue, ErrorMessage = "ID de rol invï¿½lido")]
 	public int RoleId { get; set; } = 3; // Suponiendo que 3 es 'Developer' en tu tabla
 }
 
@@ -38,25 +38,25 @@ public class UpdateUserDto
     [StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
     public string? Name { get; set; }
 
-    [Url(ErrorMessage = "La URL del avatar es inválida")]
+    [Url(ErrorMessage = "La URL del avatar es invï¿½lida")]
     public string? AvatarUrl { get; set; }
 
-    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
+    [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario invï¿½lido")]
     public string? Role { get; set; }
 }
 
 /// <summary>
-/// DTO para cambiar contraseña
+/// DTO para cambiar contraseï¿½a
 /// </summary>
 public class ChangePasswordDto
 {
-    [Required(ErrorMessage = "La contraseña actual es requerida")]
+    [Required(ErrorMessage = "La contraseï¿½a actual es requerida")]
     public string CurrentPassword { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "La nueva contraseña es requerida")]
-    [StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseña debe tener al menos 8 caracteres")]
+    [Required(ErrorMessage = "La nueva contraseï¿½a es requerida")]
+    [StringLength(255, MinimumLength = 8, ErrorMessage = "La contraseï¿½a debe tener al menos 8 caracteres")]
     [RegexAttribute(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$", 
-        ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
+        ErrorMessage = "La contraseï¿½a debe contener mayï¿½sculas, minï¿½sculas, nï¿½meros y caracteres especiales")]
     public string NewPassword { get; set; } = string.Empty;
 }
 
@@ -96,10 +96,10 @@ public class UserSimpleDto
 public class LoginDto
 {
     [Required(ErrorMessage = "El email es requerido")]
-    [EmailAddress(ErrorMessage = "El formato del email es inválido")]
+    [EmailAddress(ErrorMessage = "El formato del email es invï¿½lido")]
     public string Email { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "La contraseña es requerida")]
+    [Required(ErrorMessage = "La contraseï¿½a es requerida")]
     public string Password { get; set; } = string.Empty;
 }
 
@@ -113,7 +113,8 @@ public class LoginResponseDto
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string Token { get; set; } = string.Empty;
-    public bool LightTheme { get; set; } = true;
+    public string ThemePreference { get; set; } = "Light";
+    public bool NotifyByEmail { get; set; } = true;
 	public DateTime ExpiresAt { get; set; }
     public DateTime LastConnection { get; set; }
 }

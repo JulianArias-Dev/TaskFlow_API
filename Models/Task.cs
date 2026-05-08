@@ -46,7 +46,8 @@ namespace TaskFlow_API.Models
         public List<Task> SubTasks { get; set; } = new();
 
         // Relaciones N:M
-        public List<TaskTag> TaskTags { get; set; } = new();
+        /// <summary>Relación N:M Task &lt;-&gt; Tag vía la tabla intermedia `TaskLabels`.</summary>
+        public List<TaskLabel> TaskLabels { get; set; } = new();
         public List<TaskAssignment> Assignments { get; set; } = new();
 
         // One-to-Many
@@ -65,14 +66,14 @@ namespace TaskFlow_API.Models
                 Priority = this.Priority,
                 ColumnId = this.ColumnId,
                 Assignments = new List<TaskAssignment>(),
-                ParentTaskId = null, // No heredar relaci�n padre en clonado
+                ParentTaskId = null, // No heredar relaci�n padre en clonado
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 DueDate = this.DueDate,
                 EstimatedHours = this.EstimatedHours,
                 ActualHours = 0,
                 Tags = new List<string>(this.Tags),
-                TaskTags = new(),
+                TaskLabels = new(),
                 Comments = new(),
                 Files = new(),
                 SubTasks = new()

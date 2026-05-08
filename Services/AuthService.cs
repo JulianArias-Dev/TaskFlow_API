@@ -70,7 +70,8 @@ public class AuthService : IAuthService
             Email = user.Email,
             Name = user.Name,
             Role = user.AppRole.Name,
-            LightTheme = user.LightTheme,
+            ThemePreference = user.ThemePreference.ToString(),
+            NotifyByEmail = user.NotifyByEmail,
             LastConnection = user.LastLoginAt.Value,
 			Token = token,
             ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())
@@ -128,7 +129,8 @@ public class AuthService : IAuthService
 			Name = userWithRole.Name,
 			// ✅ CORRECCIÓN: Usamos el nombre descriptivo del catálogo
 			Role = userWithRole.AppRole?.Name ?? "CommonUser",
-			LightTheme = userWithRole.LightTheme,
+			ThemePreference = userWithRole.ThemePreference.ToString(),
+			NotifyByEmail = userWithRole.NotifyByEmail,
             LastConnection = userWithRole.LastLoginAt!.Value,
 			Token = token,
 			ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())
@@ -170,7 +172,9 @@ public class AuthService : IAuthService
             new(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(System.Security.Claims.ClaimTypes.Email, user.Email),
             new(System.Security.Claims.ClaimTypes.Name, user.Name),
-            new(System.Security.Claims.ClaimTypes.Role, user.AppRole?.Name ?? "CommonUser")
+            new(System.Security.Claims.ClaimTypes.Role, user.AppRole?.Name ?? "CommonUser"),
+            // JTI (JWT ID) — identificador único para soportar revocación (logout)
+            new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };
 
         var token = new JwtSecurityToken(

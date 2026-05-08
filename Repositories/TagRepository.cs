@@ -49,8 +49,8 @@ public class TagRepository : Repository<Tag>, ITagRepository
 
     public async System.Threading.Tasks.Task<int> GetTaskCountByTagAsync(Guid tagId)
     {
-        return await _context.TaskTags
-            .CountAsync(tt => tt.TagId == tagId);
+        return await _context.TaskLabels
+            .CountAsync(tl => tl.TagId == tagId);
     }
 
     public async System.Threading.Tasks.Task<(List<Tag> items, int totalCount)> GetTagsPagedByProjectAsync(Guid projectId, int pageNumber, int pageSize)
