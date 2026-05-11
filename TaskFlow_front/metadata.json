@@ -1,0 +1,6 @@
+{
+  "name": "TaskFlow",
+  "description": "Un sistema integral de gestión de tareas y proyectos inspirado en Jira, con flujos de trabajo personalizados y colaboración en tiempo real.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
