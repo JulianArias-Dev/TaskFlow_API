@@ -213,11 +213,12 @@ app.UseAuthentication();
 app.UseJwtBlacklist();   // Verifica blacklist DESPUÉS de autenticar
 app.UseAuthorization();
 
-// En Program.cs, antes de LoadFromDatabaseAsync()
+// Aplica todas las migraciones pendientes al arrancar. Incluye los seeds
+// (catálogos + SuperAdmin) definidos vía `HasData` en TaskFlowDbContext.
 using (var scope = app.Services.CreateScope())
 {
 	var db = scope.ServiceProvider.GetRequiredService<TaskFlowDbContext>();
-	await db.Database.MigrateAsync(); // Esto crea la DB y las tablas si no existen
+	await db.Database.MigrateAsync();
 }
 
 if (app.Environment.IsDevelopment())

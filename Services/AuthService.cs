@@ -72,6 +72,7 @@ public class AuthService : IAuthService
             Role = user.AppRole.Name,
             ThemePreference = user.ThemePreference.ToString(),
             NotifyByEmail = user.NotifyByEmail,
+            NotificationPreferences = user.NotificationPreferences,
             LastConnection = user.LastLoginAt.Value,
 			Token = token,
             ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())
@@ -94,6 +95,13 @@ public class AuthService : IAuthService
         // Hash de la contraseña
         var passwordHash = HashPassword(registerDto.Password);
 
+        // Auto-promote: si la BD aún no tiene ningún usuario, este se convierte
+        // en Admin automáticamente. Útil para el bootstrap inicial y como
+        // red de seguridad por si el seed del SuperAdmin no se ejecutó.
+        var totalUsers = await _unitOfWork.Users.CountAsync();
+        var roleIdFromDto = registerDto.RoleId > 0 ? registerDto.RoleId : 2;
+        var appliedRoleId = totalUsers == 0 ? 1 : roleIdFromDto;
+
         // Crear nuevo usuario
         var user = new User
         {
@@ -101,11 +109,16 @@ public class AuthService : IAuthService
             Name = registerDto.Name,
             PasswordHash = passwordHash,
             AvatarUrl = registerDto.AvatarUrl,
-			AppRoleId = registerDto.RoleId > 0 ? registerDto.RoleId : 1,
-			IsActive = true,
-			CreatedAt = DateTime.UtcNow,
-			UpdatedAt = DateTime.UtcNow
-		};
+            AppRoleId = appliedRoleId,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        if (totalUsers == 0)
+        {
+            _logger.LogInformation("Primer usuario del sistema — promovido a Admin: {Email}", registerDto.Email);
+        }
 
         await _unitOfWork.Users.AddAsync(user);
         await _unitOfWork.SaveChangesAsync();
@@ -131,6 +144,7 @@ public class AuthService : IAuthService
 			Role = userWithRole.AppRole?.Name ?? "CommonUser",
 			ThemePreference = userWithRole.ThemePreference.ToString(),
 			NotifyByEmail = userWithRole.NotifyByEmail,
+			NotificationPreferences = userWithRole.NotificationPreferences,
             LastConnection = userWithRole.LastLoginAt!.Value,
 			Token = token,
 			ExpiresAt = DateTime.UtcNow.AddHours(GetTokenExpirationHours())

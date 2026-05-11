@@ -61,6 +61,12 @@ public class TaskFlowDbContext : DbContext
 				  .HasMaxLength(20)
 				  .HasDefaultValue(ThemePreference.Light);
 
+			// Preferencias por evento (RF-05.3) — JSON crudo. Usamos nvarchar(max)
+			// para no atarnos a una estructura concreta; el formato se valida en
+			// la capa de servicio.
+			entity.Property(u => u.NotificationPreferences)
+				  .HasColumnType("nvarchar(max)");
+
 			// 3. Relaci�n con el Cat�logo de Roles de Aplicaci�n (Admin, CommonUser)
 			entity.HasOne(u => u.AppRole)
 				  .WithMany() // No necesitamos una lista de usuarios en la tabla AppRole
@@ -537,6 +543,32 @@ public class TaskFlowDbContext : DbContext
 			new AppRole { Id = 1, Name = "Admin" },
 			new AppRole { Id = 2, Name = "CommonUser" }
 		);
+
+		// ----- SuperAdmin (bootstrap) ---------------------------------------
+		// Usuario administrador inicial para demos y operación. Se siembra
+		// desde la migración (`HasData`) para que exista desde la primera
+		// vez que se levanta la BD, sin necesidad de código en startup.
+		//
+		// Credenciales:
+		//   email:    superadmin@taskflow.com
+		//   password: Admin123*
+		//
+		// El hash BCrypt está pre-computado (cost=11). Para regenerarlo:
+		//   BCrypt.Net.BCrypt.HashPassword("Admin123*")
+		// y reemplazar la constante de abajo + crear una nueva migración.
+		modelBuilder.Entity<User>().HasData(new User
+		{
+			Id = new Guid("00000000-0000-0000-0000-000000000001"),
+			Email = "superadmin@taskflow.com",
+			Name = "SuperAdmin",
+			PasswordHash = "$2a$11$QiuTL7x1k/8hGeh4GXfhZOT2WD3lkz7S2EYkUS6rMJsAa71X1883m",
+			AppRoleId = 1, // Admin
+			IsActive = true,
+			NotifyByEmail = true,
+			ThemePreference = ThemePreference.Light,
+			CreatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc),
+			UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc)
+		});
 
 		// ProjectRoles
 		modelBuilder.Entity<ProjectRole>().HasData(

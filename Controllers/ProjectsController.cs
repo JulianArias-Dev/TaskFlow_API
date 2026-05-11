@@ -183,16 +183,23 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
-    /// Agrega un miembro a un proyecto
+    /// Agrega un miembro a un proyecto.
     /// </summary>
+    /// <param name="projectRoleId">
+    /// Id del rol del catálogo `ProjectRoles` (1=Creator, 2=Project Manager,
+    /// 3=Developer). Si no se envía, se asume Developer.
+    /// </param>
     [HttpPost("{projectId}/members/{userId}")]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<ResponseDto>> AddMember(Guid projectId, Guid userId)
+    public async Task<ActionResult<ResponseDto>> AddMember(
+        Guid projectId,
+        Guid userId,
+        [FromQuery] int projectRoleId = 3)
     {
         try
         {
-            var result = await _projectService.AddMemberAsync(projectId, userId, 3);
+            var result = await _projectService.AddMemberAsync(projectId, userId, projectRoleId);
             if (!result)
             {
                 _logger.LogWarning("Failed to add member {UserId} to project {ProjectId}", userId, projectId);

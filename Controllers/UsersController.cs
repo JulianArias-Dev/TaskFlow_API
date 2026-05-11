@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,55 +20,56 @@ public class UsersController : ControllerBase
 {
     private readonly IUserService _userService;
     private readonly INotificationService _notificationService;
-	private readonly ILogger<UsersController> _logger;
+    private readonly IMapper _mapper;
+    private readonly ILogger<UsersController> _logger;
 
-    public UsersController(IUserService userService, ILogger<UsersController> logger, INotificationService notificationService)
+    public UsersController(
+        IUserService userService,
+        ILogger<UsersController> logger,
+        INotificationService notificationService,
+        IMapper mapper)
     {
         _userService = userService;
         _notificationService = notificationService;
-		_logger = logger;
+        _mapper = mapper;
+        _logger = logger;
     }
 
     /// <summary>
-    /// Obtiene un usuario por ID
+    /// Obtiene un usuario por ID (devuelve UserDto con el rol resuelto).
     /// </summary>
-    /// <param name="id">ID del usuario</param>
-    /// <returns>Datos del usuario</returns>
     [HttpGet("{id}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<User>> GetUserById(Guid id)
+    public async Task<ActionResult<UserDto>> GetUserById(Guid id)
     {
-        var user = await _userService.GetUserByIdAsync(id);
+        var user = await _userService.GetUserByIdWithRoleAsync(id);
         if (user == null)
         {
             _logger.LogWarning("User with ID {UserId} not found", id);
             return NotFound(new { message = $"User with ID {id} not found" });
         }
-        return Ok(user);
+        return Ok(_mapper.Map<UserDto>(user));
     }
 
     /// <summary>
-    /// Obtiene todos los usuarios
+    /// Obtiene todos los usuarios con su rol resuelto.
     /// </summary>
-    /// <returns>Lista de todos los usuarios</returns>
     [HttpGet]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<User>>> GetAllUsers()
+    [ProducesResponseType(typeof(IEnumerable<UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetAllUsers()
     {
         var users = await _userService.GetAllUsersAsync();
-        return Ok(users);
+        return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
     }
 
     /// <summary>
-    /// Obtiene un usuario por email
+    /// Obtiene un usuario por email.
     /// </summary>
-    /// <param name="email">Email del usuario</param>
-    /// <returns>Datos del usuario</returns>
     [HttpGet("email/{email}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(UserDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
-    public async Task<ActionResult<User>> GetUserByEmail(string email)
+    public async Task<ActionResult<UserDto>> GetUserByEmail(string email)
     {
         var user = await _userService.GetUserByEmailAsync(email);
         if (user == null)
@@ -75,20 +77,18 @@ public class UsersController : ControllerBase
             _logger.LogWarning("User with email {Email} not found", email);
             return NotFound(new { message = $"User with email {email} not found" });
         }
-        return Ok(user);
+        return Ok(_mapper.Map<UserDto>(user));
     }
 
     /// <summary>
-    /// Obtiene usuarios que pertenecen a un proyecto espec�fico
+    /// Obtiene usuarios que pertenecen a un proyecto específico.
     /// </summary>
-    /// <param name="projectId">ID del proyecto</param>
-    /// <returns>Lista de usuarios del proyecto</returns>
     [HttpGet("project/{projectId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsersByProject(Guid projectId)
+    [ProducesResponseType(typeof(IEnumerable<UserDto>), StatusCodes.Status200OK)]
+    public async Task<ActionResult<IEnumerable<UserDto>>> GetUsersByProject(Guid projectId)
     {
         var users = await _userService.GetUsersByProjectAsync(projectId);
-        return Ok(users);
+        return Ok(_mapper.Map<IEnumerable<UserDto>>(users));
     }
 
     /// <summary>
@@ -156,6 +156,36 @@ public class UsersController : ControllerBase
         {
             _logger.LogWarning("User with ID {UserId} not found for update", id);
             return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Cambia el rol (AppRole) de un usuario. Requiere rol Admin.
+    /// Permite también activar/desactivar la cuenta en el mismo request.
+    /// </summary>
+    [HttpPut("{id}/role")]
+    [Authorize(Roles = "Admin")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<User>> UpdateUserRole(Guid id, [FromBody] UpdateUserRoleDto dto)
+    {
+        if (dto == null) return BadRequest(new { message = "Payload requerido" });
+
+        try
+        {
+            var updated = await _userService.UpdateRoleAsync(id, dto.AppRoleId, dto.IsActive);
+            _logger.LogInformation("Admin actualizó el rol del usuario {UserId} a {RoleId}", id, dto.AppRoleId);
+            return Ok(updated);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(new { message = ex.Message });
         }
     }
 
@@ -254,7 +284,7 @@ public class UsersController : ControllerBase
 	}
 
 	/// <summary>
-	///  Marca la notificaci�n como le�da
+	///  Marca la notificación como leída
 	/// </summary>
 	[HttpPost("notifications/{id}/read")]
 	[Authorize]
@@ -263,5 +293,48 @@ public class UsersController : ControllerBase
 		await _notificationService.MarkAsReadAsync(id);
 
 		return NoContent();
+	}
+
+	/// <summary>
+	/// Devuelve las preferencias de notificación del usuario autenticado.
+	/// RF-05.3 — qué eventos y por qué canal.
+	/// </summary>
+	[HttpGet("me/notification-preferences")]
+	[Authorize]
+	[ProducesResponseType(typeof(ResponseDto<NotificationPreferencesDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
+	public async Task<ActionResult<ResponseDto<NotificationPreferencesDto>>> GetMyNotificationPreferences()
+	{
+		var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+		var prefs = await _userService.GetNotificationPreferencesAsync(userId);
+		return Ok(ResponseDto<NotificationPreferencesDto>.SuccessResponse(prefs, "Preferences retrieved"));
+	}
+
+	/// <summary>
+	/// Actualiza las preferencias de notificación del usuario autenticado.
+	/// </summary>
+	[HttpPut("me/notification-preferences")]
+	[Authorize]
+	[ProducesResponseType(typeof(ResponseDto<NotificationPreferencesDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status401Unauthorized)]
+	public async Task<ActionResult<ResponseDto<NotificationPreferencesDto>>> UpdateMyNotificationPreferences(
+		[FromBody] NotificationPreferencesDto dto)
+	{
+		var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+		if (!Guid.TryParse(userIdClaim, out var userId)) return Unauthorized();
+
+		try
+		{
+			var saved = await _userService.UpdateNotificationPreferencesAsync(userId, dto);
+			_logger.LogInformation("User {UserId} updated notification preferences", userId);
+			return Ok(ResponseDto<NotificationPreferencesDto>.SuccessResponse(saved, "Preferences updated"));
+		}
+		catch (KeyNotFoundException ex)
+		{
+			return NotFound(ResponseDto.NotFoundResponse(ex.Message));
+		}
 	}
 }

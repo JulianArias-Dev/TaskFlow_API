@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Project } from '../../types/models';
+import { Project, ProjectStatus } from '../../types/models';
 import { dbService } from '../../services/databaseService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X, Trash2, Users, Save, Mail, ShieldAlert } from 'lucide-react';
 import { auth } from '../../lib/firebase';
+import { useCatalog } from '../../hooks/useCatalog';
 
 interface Props {
   project: Project;
@@ -25,8 +26,20 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
   
   const [members, setMembers] = useState<any[]>([]);
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('DEVELOPER');
+  const [inviteRole, setInviteRole] = useState('');
   const [inviting, setInviting] = useState(false);
+
+  // Catálogos del backend
+  const { items: projectStatuses } = useCatalog('project-status');
+  const { items: projectRoles } = useCatalog('project-roles');
+
+  // Cuando carga el catálogo de roles, dejamos seleccionado el primero (sin
+  // permisos elevados) por defecto.
+  useEffect(() => {
+    if (!inviteRole && projectRoles.length > 0) {
+      setInviteRole(projectRoles[projectRoles.length - 1].name);
+    }
+  }, [projectRoles, inviteRole]);
   
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [cloneName, setCloneName] = useState('');
@@ -73,15 +86,17 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
     if (!inviteEmail) return;
     setInviting(true);
     try {
-      const ok = await dbService.addProjectMember(project.id, inviteEmail, inviteRole);
+      // Convertimos el name seleccionado al Id que espera el backend.
+      const roleId = projectRoles.find((r) => r.name === inviteRole)?.id;
+      const ok = await dbService.addProjectMember(project.id, inviteEmail, roleId);
       if (ok) {
         setInviteEmail('');
         await loadMembers();
       } else {
-        alert("Error: usuario no registrado o sin permisos");
+        alert('Error: usuario no registrado o sin permisos');
       }
-    } catch(err) {
-      alert("Error al invitar al usuario");
+    } catch (err: any) {
+      alert(err?.message || 'Error al invitar al usuario');
     } finally {
       setInviting(false);
     }
@@ -160,17 +175,18 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Estado</label>
-                  <select 
-                    value={status} 
-                    onChange={e => setStatus(e.target.value as any)}
+                  <select
+                    value={status}
+                    onChange={e => setStatus(e.target.value as ProjectStatus)}
                     disabled={!isOwnerOrAdmin}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
-                    <option value="PLANIFICADO">Planificado</option>
-                    <option value="EN_PROGRESO">En Progreso</option>
-                    <option value="PAUSADO">Pausado</option>
-                    <option value="COMPLETADO">Completado</option>
-                    <option value="ARCHIVADO">Archivado</option>
+                    {projectStatuses.length === 0 && (
+                      <option value={status}>Cargando…</option>
+                    )}
+                    {projectStatuses.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}</option>
+                    ))}
                   </select>
                 </div>
               </form>
@@ -262,14 +278,17 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
                         className="bg-white dark:bg-gray-800 dark:text-gray-100"
                       />
                     </div>
-                    <select 
-                      value={inviteRole} 
+                    <select
+                      value={inviteRole}
                       onChange={e => setInviteRole(e.target.value)}
                       className="px-3 py-2 bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
-                      <option value="DEVELOPER">Developer</option>
-                      <option value="PROJECT_MANAGER">Project Manager</option>
-                      <option value="ADMIN">Admin</option>
+                      {projectRoles.length === 0 && (
+                        <option value="">Cargando roles…</option>
+                      )}
+                      {projectRoles.map((r) => (
+                        <option key={r.id} value={r.name}>{r.name}</option>
+                      ))}
                     </select>
                     <Button type="submit" isLoading={inviting}>
                       <Mail className="w-4 h-4 mr-2" /> Invitar

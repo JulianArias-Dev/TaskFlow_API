@@ -15,10 +15,15 @@ public class MappingProfile : Profile
     public MappingProfile()
     {
         // Task Mappings
+        // IMPORTANTE: usar `.Name` del catálogo, no `.ToString()`. Las
+        // navegaciones a catálogos (TaskType, TaskStatus, TaskPriority) son
+        // `null!` cuando la query no las incluye o cuando la entidad recién
+        // se creó; el operador `?.` evita NullReferenceException.
         CreateMap<TaskEntity, TaskDto>()
-            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type.ToString()))
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority.ToString()))
+            .ForMember(dest => dest.Type, opt => opt.MapFrom(src => src.Type != null ? src.Type.Name : ""))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status != null ? src.Status.Name : ""))
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority != null ? src.Priority.Name : ""))
+            .ForMember(dest => dest.AssignedUserIds, opt => opt.MapFrom(src => src.Assignments.Select(a => a.UserId)))
             .ForMember(dest => dest.SubTaskCount, opt => opt.MapFrom(src => src.SubTasks.Count))
             .ForMember(dest => dest.CommentCount, opt => opt.MapFrom(src => src.Comments.Count))
             .ForMember(dest => dest.FileCount, opt => opt.MapFrom(src => src.Files.Count))
@@ -28,8 +33,9 @@ public class MappingProfile : Profile
             .ForMember(dest => dest.Priority, opt => opt.Ignore());
 
         CreateMap<TaskEntity, TaskSimpleDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority.ToString()));
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status != null ? src.Status.Name : ""))
+            .ForMember(dest => dest.Priority, opt => opt.MapFrom(src => src.Priority != null ? src.Priority.Name : ""))
+            .ForMember(dest => dest.AssignedUserIds, opt => opt.MapFrom(src => src.Assignments.Select(a => a.UserId)));
 
         CreateMap<CreateTaskDto, TaskEntity>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
@@ -45,14 +51,14 @@ public class MappingProfile : Profile
 
         // Project Mappings
         CreateMap<Project, ProjectDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status != null ? src.Status.Name : ""))
             .ForMember(dest => dest.MemberIds, opt => opt.MapFrom(src => src.Members.Select(m => m.UserId)))
             .ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.Tasks.Count))
             .ForMember(dest => dest.MemberCount, opt => opt.MapFrom(src => src.Members.Count))
             .ForMember(dest => dest.BoardCount, opt => opt.MapFrom(src => src.Boards.Count));
 
         CreateMap<Project, ProjectSimpleDto>()
-            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
+            .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status != null ? src.Status.Name : ""))
             .ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.Tasks.Count))
             .ForMember(dest => dest.MemberCount, opt => opt.MapFrom(src => src.Members.Count));
 
@@ -110,12 +116,14 @@ public class MappingProfile : Profile
             {
                 Id = t.Id,
                 Title = t.Title,
-                Status = t.Status.ToString(),
-                Priority = t.Priority.ToString(),
-				AssignedUserIds = t.Assignments != null
-			        ? t.Assignments.Select(a => a.UserId).ToList()
-			        : new List<Guid>(),
-				DueDate = t.DueDate
+                Status = t.Status != null ? t.Status.Name : "",
+                StatusId = t.StatusId,
+                Priority = t.Priority != null ? t.Priority.Name : "",
+                PriorityId = t.PriorityId,
+                AssignedUserIds = t.Assignments != null
+                    ? t.Assignments.Select(a => a.UserId).ToList()
+                    : new List<Guid>(),
+                DueDate = t.DueDate
             })));
 
         CreateMap<CreateColumnDto, Column>()

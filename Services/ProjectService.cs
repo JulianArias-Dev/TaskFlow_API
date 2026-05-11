@@ -93,7 +93,10 @@ public class ProjectService : IProjectService
 
         await _unitOfWork.SaveChangesAsync();
 
-        return MapToDto(project);
+        // Recargamos con todas las navegaciones (Status, Boards, Columns,
+        // Members) para que MapToDto entregue una respuesta completa.
+        var hydrated = await _unitOfWork.Projects.GetProjectWithTasksAsync(project.Id) ?? project;
+        return MapToDto(hydrated);
     }
 
 	public async System.Threading.Tasks.Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto updateProjectDto)
@@ -215,6 +218,9 @@ public class ProjectService : IProjectService
 
     private ProjectDto MapToDto(Project project)
     {
+        var boards = project.Boards ?? new List<Board>();
+        var members = project.Members ?? new List<ProjectMember>();
+
         return new ProjectDto
         {
             Id = project.Id,
@@ -226,55 +232,51 @@ public class ProjectService : IProjectService
             EndDate = project.EndDate,
             CreatedAt = project.CreatedAt,
             UpdatedAt = project.UpdatedAt,
-            Status = project.Status.ToString(),
-			MemberIds = project.Members?.Select(m => m.UserId).ToList() ?? new(),
-            //Tasks = project.Tasks?.Select(t => new TaskDto
-            //{
-            //    Id = t.Id,
-            //    Title = t.Title,
-            //    Description = t.Description,
-            //    Type = t.Type.ToString(),
-            //    Status = t.Status.ToString(),
-            //    Priority = t.Priority.ToString(),
-            //    ProjectId = t.ProjectId,
-            //    AssignedToUserId = t.AssignedToUserId,
-            //    CreatedAt = t.CreatedAt,
-            //    UpdatedAt = t.UpdatedAt,
-            //    DueDate = t.DueDate,
-            //    EstimatedHours = t.EstimatedHours,
-            //    Tags = t.Tags
-            //}).ToList() ?? new(),
-            BoardCount = project.Boards.Count,
-            Boards = project.Boards?.Select(b => new BoardDto
+            // Status puede ser null si la query no incluyó la navegación.
+            Status = project.Status?.Name ?? string.Empty,
+            StatusId = project.StatusId,
+            MemberIds = members.Select(m => m.UserId).ToList(),
+            MemberCount = members.Count,
+            BoardCount = boards.Count,
+            Boards = boards.Select(b =>
             {
-                ProjectId = b.ProjectId,
-				Id = b.Id,
-                Name = b.Name,
-                Description = b.Description,
-                CreatedAt = b.CreatedAt,
-                UpdatedAt = b.UpdatedAt,
-                ColumnCount = b.Columns.Count,
-                Columns = b.Columns?.Select(c => new ColumnDto
+                var columns = b.Columns ?? new List<Column>();
+                return new BoardDto
                 {
-                    BoardId = c.BoardId,
-					Id = c.Id,
-                    Name = c.Name,
-                    DisplayOrder = c.DisplayOrder,
-                    CreatedAt = c.CreatedAt,
-                    UpdatedAt = c.UpdatedAt,
-                    TaskCount = c.Tasks.Count,
-                    Tasks = c.Tasks?.Select(t => new TaskSimpleDto
+                    ProjectId = b.ProjectId,
+                    Id = b.Id,
+                    Name = b.Name,
+                    Description = b.Description,
+                    CreatedAt = b.CreatedAt,
+                    UpdatedAt = b.UpdatedAt,
+                    ColumnCount = columns.Count,
+                    Columns = columns.Select(c =>
                     {
-                        Id = t.Id,
-                        Title = t.Title,
-                        Status = t.Status.ToString(),
-                        Priority = t.Priority.ToString(),
-						AssignedUserIds = t.Assignments?.Select(a => a.UserId).ToList() ?? new(),
-						DueDate = t.DueDate
-					}
-                    ).ToList () ?? new()
-				}).ToList() ?? new()
-            }).ToList() ?? new(),
-		};
+                        var tasks = c.Tasks ?? new List<TaskFlow_API.Models.Task>();
+                        return new ColumnDto
+                        {
+                            BoardId = c.BoardId,
+                            Id = c.Id,
+                            Name = c.Name,
+                            DisplayOrder = c.DisplayOrder,
+                            CreatedAt = c.CreatedAt,
+                            UpdatedAt = c.UpdatedAt,
+                            TaskCount = tasks.Count,
+                            Tasks = tasks.Select(t => new TaskSimpleDto
+                            {
+                                Id = t.Id,
+                                Title = t.Title,
+                                Status = t.Status?.Name ?? string.Empty,
+                                StatusId = t.StatusId,
+                                Priority = t.Priority?.Name ?? string.Empty,
+                                PriorityId = t.PriorityId,
+                                AssignedUserIds = t.Assignments?.Select(a => a.UserId).ToList() ?? new(),
+                                DueDate = t.DueDate
+                            }).ToList()
+                        };
+                    }).ToList()
+                };
+            }).ToList(),
+        };
     }
 }

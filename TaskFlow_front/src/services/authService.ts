@@ -12,6 +12,8 @@ import { auth, type AuthUser } from '../lib/firebase';
 import type {
   LoginRequest,
   LoginResponse,
+  NotificationPreferences,
+  NotificationPreferencesPayload,
   RegisterRequest,
   TokenValidationInfo,
   UserApi,
@@ -133,9 +135,29 @@ export const authService = {
     }
   },
 
-  /** Preferencias de notificaciones — no-op hasta que exista endpoint. */
-  async updateNotificationPreferences(_prefs: unknown): Promise<void> {
-    console.warn('[authService] updateNotificationPreferences aún no implementado en el backend');
+  /**
+   * Devuelve las preferencias de notificación del usuario autenticado.
+   * Si el usuario no las ha definido, el backend completa con defaults
+   * (todos los eventos activos en ambos canales).
+   */
+  async getNotificationPreferences(): Promise<NotificationPreferences> {
+    if (!auth.currentUser) throw new Error('No autenticado');
+    const res = await api.get<NotificationPreferencesPayload>('/Users/me/notification-preferences');
+    return res?.preferences ?? {};
+  },
+
+  /**
+   * Actualiza las preferencias por evento (RF-05.3). El backend filtrará
+   * automáticamente los canales que el usuario haya silenciado al enviar
+   * notificaciones futuras.
+   */
+  async updateNotificationPreferences(prefs: NotificationPreferences): Promise<NotificationPreferences> {
+    if (!auth.currentUser) throw new Error('No autenticado');
+    const res = await api.put<NotificationPreferencesPayload>(
+      '/Users/me/notification-preferences',
+      { preferences: prefs } satisfies NotificationPreferencesPayload,
+    );
+    return res?.preferences ?? prefs;
   },
 
   /** Recupera el perfil de un usuario por uid. */

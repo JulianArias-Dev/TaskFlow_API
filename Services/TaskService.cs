@@ -24,7 +24,7 @@ public interface ITaskService
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetTasksByAssigneeAsync(Guid userId);
     System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetOverdueTasksAsync();
     System.Threading.Tasks.Task<TaskDto> CreateTaskAsync(CreateTaskDto createTaskDto);
-    System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskType, string title, string description, Guid projectId);
+    System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskType, string title, string description, Guid columnId);
     System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto);
     System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id);
     System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId);
@@ -34,7 +34,7 @@ public interface ITaskService
 
 /// <summary>
 /// Servicio de Task
-/// Encapsula la lógica de negocio para operaciones con tareas
+/// Encapsula la lï¿½gica de negocio para operaciones con tareas
 /// Utiliza patrones creacionales: Factory Method, Builder, Prototype
 /// </summary>
 public class TaskService : ITaskService
@@ -72,7 +72,7 @@ public class TaskService : ITaskService
 	{
 		if (statusId <= 0)
 		{
-			throw new ArgumentException("El ID de estado proporcionado no es válido.");
+			throw new ArgumentException("El ID de estado proporcionado no es vï¿½lido.");
 		}
 
 		var tasks = await _unitOfWork.Tasks.GetTasksByStatusAsync(statusId);
@@ -110,6 +110,10 @@ public class TaskService : ITaskService
 			Description = createTaskDto.Description ?? "",
 			TypeId = typeId,
 			PriorityId = priorityId,
+			// Una tarea nueva siempre nace en "To Do" (Id=1 en TaskStatuses).
+			// El cliente no envÃ­a StatusId al crear; los movimientos posteriores
+			// entre columnas Kanban actualizan ColumnId, no este campo.
+			StatusId = 1,
 			ColumnId = createTaskDto.ColumnId,
 			DueDate = createTaskDto.DueDate,
 			EstimatedHours = createTaskDto.EstimatedHours,
@@ -117,12 +121,12 @@ public class TaskService : ITaskService
 			ParentTaskId = createTaskDto.ParentTaskId
 		};
 
-		// Lógica de Asignación y Notificación
+		// Lï¿½gica de Asignaciï¿½n y Notificaciï¿½n
 		if (createTaskDto.AssignedToUserId.HasValue)
 		{
 			var userId = createTaskDto.AssignedToUserId.Value;
 
-			// VERIFICACIÓN: ¿Es miembro del proyecto?
+			// VERIFICACIï¿½N: ï¿½Es miembro del proyecto?
 			var isMember = await _unitOfWork.Projects.IsMemberAsync(board.ProjectId, userId);
 
 			if (!isMember)
@@ -140,7 +144,7 @@ public class TaskService : ITaskService
 			await _unitOfWork.Tasks.AddAsync(task);
 			await _unitOfWork.SaveChangesAsync();
 
-			//  Enviar Notificación (App + Email)
+			//  Enviar Notificaciï¿½n (App + Email)
 			var user = await _unitOfWork.Users.GetByIdAsync(userId);
 			if (user != null)
 			{
@@ -151,7 +155,7 @@ public class TaskService : ITaskService
                 <p><strong>Tarea:</strong> {task.Title}</p>
                 <p><strong>Prioridad:</strong> {task.Priority}</p>";
 
-				await _notificationService.NotifyAsync(userId, subject, content);
+				await _notificationService.NotifyAsync(userId, "ASSIGNED", subject, content);
 			}
 		}
 		else
@@ -163,19 +167,28 @@ public class TaskService : ITaskService
 		return MapToDto(task);
 	}
 
-	public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskTypeId, string title, string description, Guid projectId)
+	/// <summary>
+	/// Factory Method en acciÃ³n: delega en TaskFactoryProvider la construcciÃ³n
+	/// de la entidad. La columna se valida primero porque es FK obligatoria.
+	/// </summary>
+	public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskTypeId, string title, string description, Guid columnId)
 	{
-		int finalTypeId = taskTypeId > 0 ? taskTypeId : 1;
+		// Validar que la columna existe â€” el error de FK que da EF no es legible.
+		var column = await _unitOfWork.Columns.GetByIdAsync(columnId);
+		if (column == null)
+			throw new KeyNotFoundException($"Column with ID {columnId} not found");
 
-		// 2. La Factory ahora debe recibir el ID (int)
-		var task = _taskFactory.CreateTask(finalTypeId, title, description, projectId);
+		int finalTypeId = taskTypeId > 0 ? taskTypeId : 5; // 5=Task por defecto
 
-		// 3. Persistencia
+		var task = _taskFactory.CreateTask(finalTypeId, title, description, columnId);
+
 		await _unitOfWork.Tasks.AddAsync(task);
 		await _unitOfWork.SaveChangesAsync();
 
-		// 4. Mapeo (Asegúrate de que MapToDto use t.Type.Name)
-		return MapToDto(task);
+		// Recargamos con navegaciones para que MapToDto entregue nombres legibles
+		// en Type/Status/Priority en vez de strings vacÃ­os.
+		var hydrated = await _unitOfWork.Tasks.GetTaskWithAssignmentsAsync(task.Id) ?? task;
+		return MapToDto(hydrated);
 	}
 
 	public async System.Threading.Tasks.Task<TaskDto> UpdateTaskAsync(Guid id, UpdateTaskDto updateTaskDto)
@@ -186,12 +199,12 @@ public class TaskService : ITaskService
             throw new KeyNotFoundException($"Task with ID {id} not found");
         }
 
-		// Identificar el Proyecto para validar membresía (Subiendo por la jerarquía)
+		// Identificar el Proyecto para validar membresï¿½a (Subiendo por la jerarquï¿½a)
 		var column = await _unitOfWork.Columns.GetByIdAsync(task.ColumnId);
 		var board = await _unitOfWork.Boards.GetByIdAsync(column.BoardId);
 		var projectId = board.ProjectId;
 
-		// Lógica de Reasignación con Notificaciones Diferenciadas
+		// Lï¿½gica de Reasignaciï¿½n con Notificaciones Diferenciadas
 		if (updateTaskDto.AssignedUserIds != null)
 		{
 			var oldUserIds = task.Assignments.Select(a => a.UserId).ToList();
@@ -202,7 +215,7 @@ public class TaskService : ITaskService
 			var usersToNotifyRemoved = oldUserIds.Except(newUserIds).ToList();
 			var usersToNotifyUpdated = newUserIds.Intersect(oldUserIds).ToList();
 
-			// Limpiar y Reasignar (Validando membresía)
+			// Limpiar y Reasignar (Validando membresï¿½a)
 			task.Assignments.Clear();
 			foreach (var userId in newUserIds)
 			{
@@ -251,7 +264,7 @@ public class TaskService : ITaskService
 
 		//	task.ColumnId = updateTaskDto.newColumn.Value;
 
-		//	// Aquí podrías disparar una notificación específica de "Movimiento de Tarea"
+		//	// Aquï¿½ podrï¿½as disparar una notificaciï¿½n especï¿½fica de "Movimiento de Tarea"
 		//}
 
 		task.UpdatedAt = DateTime.UtcNow;
@@ -265,13 +278,13 @@ public class TaskService : ITaskService
 	private async System.Threading.Tasks.Task NotifyAssignmentChanges(TaskEntity task, List<Guid> news, List<Guid> removed, List<Guid> updated)
 	{
 		foreach (var uid in news)
-			await _notificationService.NotifyAsync(uid, "Nueva asignación", $"Has sido asignado a la tarea: {task.Title}");
+			await _notificationService.NotifyAsync(uid, "ASSIGNED", "Nueva asignaciÃ³n", $"Has sido asignado a la tarea: {task.Title}");
 
 		foreach (var uid in removed)
-			await _notificationService.NotifyAsync(uid, "Asignación removida", $"Ya no eres responsable de la tarea: {task.Title}");
+			await _notificationService.NotifyAsync(uid, "ASSIGNED", "AsignaciÃ³n removida", $"Ya no eres responsable de la tarea: {task.Title}");
 
 		foreach (var uid in updated)
-			await _notificationService.NotifyAsync(uid, "Tarea actualizada", $"Se realizaron cambios en la tarea: {task.Title} en la que estás trabajando.");
+			await _notificationService.NotifyAsync(uid, "STATUS_CHANGE", "Tarea actualizada", $"Se realizaron cambios en la tarea: {task.Title} en la que estÃ¡s trabajando.");
 	}
 
 	public async System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id)
@@ -281,14 +294,14 @@ public class TaskService : ITaskService
 
 		if (task == null) return false;
 
-		// Si tiene subtareas, lanzamos una excepción de negocio
+		// Si tiene subtareas, lanzamos una excepciï¿½n de negocio
 		if (task.SubTasks != null && task.SubTasks.Any())
 		{
 			throw new InvalidOperationException(
 				$"No se puede eliminar la tarea '{task.Title}' porque tiene {task.SubTasks.Count} subtareas asociadas. Elimina o mueve las subtareas primero.");
 		}
 
-		// Si llegamos aquí, es seguro borrar
+		// Si llegamos aquï¿½, es seguro borrar
 		await _unitOfWork.Tasks.DeleteAsync(id);
 		await _unitOfWork.SaveChangesAsync();
 
@@ -319,7 +332,7 @@ public class TaskService : ITaskService
 	{
 		if (statusId <= 0)
 		{
-			throw new ArgumentException("El ID de estado proporcionado no es válido.");
+			throw new ArgumentException("El ID de estado proporcionado no es vï¿½lido.");
 		}
 
 		return await _unitOfWork.Tasks.GetTaskCountByStatusAsync(statusId);
@@ -332,16 +345,27 @@ public class TaskService : ITaskService
             Id = task.Id,
             Title = task.Title,
             Description = task.Description,
-            Type = task.Type.ToString(),
-            Status = task.Status.ToString(),
-            Priority = task.Priority.ToString(),
+            // Las navegaciones a catÃ¡logos pueden venir en null si la query no
+            // las incluyÃ³ (tÃ­pico tras un AddAsync reciÃ©n persistido). Para
+            // mostrar el nombre legible usar Name; el id viaja aparte.
+            Type = task.Type?.Name ?? string.Empty,
+            TypeId = task.TypeId,
+            Status = task.Status?.Name ?? string.Empty,
+            StatusId = task.StatusId,
+            Priority = task.Priority?.Name ?? string.Empty,
+            PriorityId = task.PriorityId,
+            ColumnId = task.ColumnId,
+            ParentTaskId = task.ParentTaskId,
             AssignedUserIds = task.Assignments?.Select(a => a.UserId).ToList() ?? new List<Guid>(),
-			CreatedAt = task.CreatedAt,
+            CreatedAt = task.CreatedAt,
             UpdatedAt = task.UpdatedAt,
             DueDate = task.DueDate,
             EstimatedHours = task.EstimatedHours,
             ActualHours = task.ActualHours,
-            Tags = task.Tags
+            Tags = task.Tags ?? new List<string>(),
+            SubTaskCount = task.SubTasks?.Count ?? 0,
+            CommentCount = task.Comments?.Count ?? 0,
+            FileCount = task.Files?.Count ?? 0
         };
     }
 }

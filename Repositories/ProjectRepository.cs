@@ -6,7 +6,7 @@ namespace TaskFlow_API.Repositories;
 
 /// <summary>
 /// Interfaz especializada para operaciones de Project
-/// Extiende el repositorio genérico con métodos específicos de negocio
+/// Extiende el repositorio genï¿½rico con mï¿½todos especï¿½ficos de negocio
 /// </summary>
 public interface IProjectRepository : IRepository<Project>
 {
@@ -22,7 +22,7 @@ public interface IProjectRepository : IRepository<Project>
 
 /// <summary>
 /// Repositorio especializado para Project
-/// Implementa operaciones específicas del dominio de proyectos
+/// Implementa operaciones especï¿½ficas del dominio de proyectos
 /// </summary>
 public class ProjectRepository : Repository<Project>, IProjectRepository
 {
@@ -33,6 +33,10 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
     public async System.Threading.Tasks.Task<IEnumerable<Project>> GetProjectsByOwnerAsync(Guid ownerId)
     {
         return await _dbSet
+            .Include(p => p.Status)
+            .Include(p => p.Members)
+            .Include(p => p.Boards)
+                .ThenInclude(b => b.Columns)
             .Where(p => p.OwnerId == ownerId)
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -41,7 +45,10 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
     public async System.Threading.Tasks.Task<IEnumerable<Project>> GetProjectsByMemberAsync(Guid userId)
     {
         return await _dbSet
+            .Include(p => p.Status)
             .Include(p => p.Members)
+            .Include(p => p.Boards)
+                .ThenInclude(b => b.Columns)
             .Where(p => p.Members.Any(m => m.UserId == userId))
             .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
@@ -50,11 +57,12 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
     public async System.Threading.Tasks.Task<Project?> GetProjectWithTasksAsync(Guid projectId)
     {
         return await _dbSet
-			.Include(p => p.Members)
-	        .Include(p => p.Boards)           // 1. Incluimos los Tableros
-		        .ThenInclude(b => b.Columns)
-				    .ThenInclude(p => p.Tasks)
-			.FirstOrDefaultAsync(p => p.Id == projectId);
+            .Include(p => p.Status)
+            .Include(p => p.Members)
+            .Include(p => p.Boards)
+                .ThenInclude(b => b.Columns)
+                    .ThenInclude(c => c.Tasks)
+            .FirstOrDefaultAsync(p => p.Id == projectId);
     }
 
     public async System.Threading.Tasks.Task<int> GetProjectCountByOwnerAsync(Guid ownerId)
@@ -101,10 +109,11 @@ public class ProjectRepository : Repository<Project>, IProjectRepository
     public async System.Threading.Tasks.Task<IEnumerable<Project>> GetAllProjectsWithTasksAsync()
     {
         return await _dbSet
+            .Include(p => p.Status)
             .Include(p => p.Tasks)
             .Include(p => p.Boards)
-            //.Include(p => p.Boards.Select(b => b.Columns))
-			.OrderByDescending(p => p.CreatedAt)
+                .ThenInclude(b => b.Columns)
+            .OrderByDescending(p => p.CreatedAt)
             .ToListAsync();
     }
 }

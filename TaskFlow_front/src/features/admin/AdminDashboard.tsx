@@ -4,14 +4,18 @@ import { Button } from '../../components/ui/Button';
 import { Users, Check, X, Edit2 } from 'lucide-react';
 import { api } from '../../lib/api';
 import type { UserApi } from '../../types/api';
+import { useCatalog } from '../../hooks/useCatalog';
 
 export function AdminDashboard() {
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // User edit
+  // Catálogo de AppRoles del backend (1=Admin, 2=CommonUser).
+  const { items: appRoles } = useCatalog('app-roles');
+
+  // User edit — `editRole` guarda el NOMBRE del rol seleccionado (no el id).
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
-  const [editRole, setEditRole] = useState<UserRole>(UserRole.DEVELOPER);
+  const [editRole, setEditRole] = useState<string>('');
   const [editActive, setEditActive] = useState(true);
 
   useEffect(() => {
@@ -45,16 +49,30 @@ export function AdminDashboard() {
     try {
       const user = users.find((u) => u.uid === uid);
       if (!user) return;
+
+      // Convertir el nombre del rol seleccionado a su id del catálogo.
+      const targetRole = appRoles.find(
+        (r) => r.name.toUpperCase() === editRole.toUpperCase(),
+      );
+      if (!targetRole) {
+        alert(`Rol "${editRole}" no existe en el catálogo del backend.`);
+        return;
+      }
+
+      // PUT /api/Users/{id}/role — admin-only. Cambia rol e isActive en un request.
       await api.put(
-        `/Users/${uid}/profile`,
-        { name: user.displayName, avatarUrl: user.photoURL ?? null },
+        `/Users/${uid}/role`,
+        { appRoleId: targetRole.id, isActive: editActive },
         { unwrap: false },
       );
-      setUsers(users.map(u => u.uid === uid ? { ...u, role: editRole, isActive: editActive } : u));
+
+      setUsers(users.map((u) => u.uid === uid
+        ? { ...u, role: editRole.toUpperCase() as UserRole, isActive: editActive }
+        : u));
       setEditingUserId(null);
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
-      alert('Error al actualizar el usuario');
+      alert(e?.message || 'Error al actualizar el usuario');
     }
   };
 
@@ -94,11 +112,14 @@ export function AdminDashboard() {
                       <select
                         className="bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 text-sm rounded-md focus:ring-blue-500 focus:border-blue-500 block p-1.5"
                         value={editRole}
-                        onChange={(e) => setEditRole(e.target.value as UserRole)}
+                        onChange={(e) => setEditRole(e.target.value)}
                       >
-                        <option value={UserRole.ADMIN}>ADMIN</option>
-                        <option value={UserRole.PROJECT_MANAGER}>PM</option>
-                        <option value={UserRole.DEVELOPER}>DEV</option>
+                        {appRoles.length === 0 && (
+                          <option value="">Cargando…</option>
+                        )}
+                        {appRoles.map((r) => (
+                          <option key={r.id} value={r.name}>{r.name}</option>
+                        ))}
                       </select>
                     ) : (
                       <span className="bg-blue-50 text-blue-700 py-1 px-2 rounded-md text-xs font-bold">{u.role}</span>

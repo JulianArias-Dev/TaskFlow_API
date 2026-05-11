@@ -59,8 +59,14 @@ export interface Task {
   description?: string;
   /** Almacena el `columnId` de Kanban en el que se encuentra la tarea. */
   status: string;
-  priority: 'BAJA' | 'MEDIA' | 'ALTA' | 'URGENTE';
-  type: 'BUG' | 'FEATURE' | 'TASK' | 'IMPROVEMENT';
+  /**
+   * Nombre legible de la prioridad tal como viene del catálogo del backend
+   * (ej. "LOW", "MEDIUM", "HIGH", "CRITICAL"). Se mantiene como `string`
+   * para no romper cuando el catálogo cambie.
+   */
+  priority: string;
+  /** Nombre legible del tipo (ej. "Feature", "Bug", "Task"). */
+  type: string;
   dueDate?: string | null;
   estimatedHours?: number | null;
   loggedHours?: number | null;

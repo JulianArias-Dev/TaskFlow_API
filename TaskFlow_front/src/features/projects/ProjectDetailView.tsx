@@ -255,21 +255,41 @@ export function ProjectDetailView({
   };
 
   const getPriorityColor = (priority: string) => {
-    switch(priority) {
-      case 'BAJA': return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
-      case 'MEDIA': return 'bg-blue-100 text-blue-700';
-      case 'ALTA': return 'bg-orange-100 text-orange-700';
-      case 'URGENTE': return 'bg-red-100 text-red-700';
-      default: return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+    // Tolerante a ambos juegos de nombres: catálogo del backend (LOW/MEDIUM/
+    // HIGH/CRITICAL) y nomenclatura legacy en español (BAJA/MEDIA/ALTA/URGENTE).
+    switch (priority?.toUpperCase()) {
+      case 'BAJA':
+      case 'LOW':
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
+      case 'MEDIA':
+      case 'MEDIUM':
+        return 'bg-blue-100 text-blue-700';
+      case 'ALTA':
+      case 'HIGH':
+        return 'bg-orange-100 text-orange-700';
+      case 'URGENTE':
+      case 'URGENT':
+      case 'CRITICAL':
+        return 'bg-red-100 text-red-700';
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300';
     }
   };
 
   const getTypeStyle = (type: string) => {
-    switch(type) {
-      case 'BUG': return 'text-red-500 border-red-200 bg-red-50';
-      case 'FEATURE': return 'text-purple-500 border-purple-200 bg-purple-50';
-      case 'IMPROVEMENT': return 'text-green-500 border-green-200 bg-green-50';
-      case 'TASK': default: return 'text-blue-500 border-blue-200 bg-blue-50';
+    switch (type?.toUpperCase()) {
+      case 'BUG':
+        return 'text-red-500 border-red-200 bg-red-50';
+      case 'FEATURE':
+        return 'text-purple-500 border-purple-200 bg-purple-50';
+      case 'IMPROVEMENT':
+      case 'ENHANCEMENT':
+        return 'text-green-500 border-green-200 bg-green-50';
+      case 'RESEARCH':
+        return 'text-yellow-600 border-yellow-200 bg-yellow-50';
+      case 'TASK':
+      default:
+        return 'text-blue-500 border-blue-200 bg-blue-50';
     }
   };
 

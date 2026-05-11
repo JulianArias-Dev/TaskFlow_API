@@ -6,6 +6,7 @@ import { X, Tag, Copy } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { dbService } from '../../services/databaseService';
 import { TaskFactory, TaskPrototype } from '../../lib/designPatterns';
+import { useCatalog } from '../../hooks/useCatalog';
 
 const PREDEFINED_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#10b981',
@@ -41,6 +42,11 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
   const [newLabelColor, setNewLabelColor] = useState(PREDEFINED_COLORS[0]);
 
   const [members, setMembers] = useState<{ uid: string; email: string; displayName?: string }[]>([]);
+
+  // Catálogos del backend (BaseCatalogController) — sustituyen los <option>
+  // hardcoded para que las opciones reflejen el estado real de la BD.
+  const { items: taskTypes } = useCatalog('task-types');
+  const { items: taskPriorities } = useCatalog('task-priorities');
 
   useEffect(() => {
     dbService
@@ -195,10 +201,14 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 value={type}
                 onChange={(e) => setType(e.target.value as Task['type'])}
               >
-                <option value="TASK">Tarea</option>
-                <option value="FEATURE">Nueva Funcionalidad</option>
-                <option value="BUG">Error (Bug)</option>
-                <option value="IMPROVEMENT">Mejora</option>
+                {taskTypes.length === 0 && (
+                  <option value={type}>Cargando…</option>
+                )}
+                {taskTypes.map((t) => (
+                  <option key={t.id} value={t.name.toUpperCase()}>
+                    {t.name}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -209,10 +219,14 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Task['priority'])}
               >
-                <option value="BAJA">Baja</option>
-                <option value="MEDIA">Media</option>
-                <option value="ALTA">Alta</option>
-                <option value="URGENTE">Urgente</option>
+                {taskPriorities.length === 0 && (
+                  <option value={priority}>Cargando…</option>
+                )}
+                {taskPriorities.map((p) => (
+                  <option key={p.id} value={p.name.toUpperCase()}>
+                    {p.name}
+                  </option>
+                ))}
               </select>
             </div>
 

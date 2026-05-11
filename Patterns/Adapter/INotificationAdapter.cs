@@ -32,6 +32,13 @@ public class NotificationMessage
     public string Content { get; set; } = string.Empty;
     public NotificationPriority Priority { get; set; } = NotificationPriority.Normal;
     public Dictionary<string, string> Metadata { get; set; } = new();
+
+    /// <summary>
+    /// Código del evento que dispara la notificación (ASSIGNED, DUE_OVERDUE,
+    /// COMMENT, STATUS_CHANGE, …). Permite al servicio resolver las
+    /// preferencias del usuario antes de elegir canales.
+    /// </summary>
+    public string? EventCode { get; set; }
 }
 
 public enum NotificationPriority { Low, Normal, High }

@@ -22,7 +22,9 @@ public class CreateUserDto
 		ErrorMessage = "La contraseña debe contener mayúsculas, minúsculas, números y caracteres especiales")]
 	public string Password { get; set; } = string.Empty;
 
-	[Url(ErrorMessage = "La URL del avatar es inválida")]
+	// Sin validación [Url]: el frontend genera data URLs (data:image/...) que
+	// no superan la validación estándar de Url. Se permite cualquier string
+	// hasta tener un endpoint dedicado a subir avatares (POST /Attachments/avatar).
 	public string? AvatarUrl { get; set; }
 
 	[Required(ErrorMessage = "El ID de rol es requerido")]
@@ -38,11 +40,25 @@ public class UpdateUserDto
     [StringLength(255, MinimumLength = 2, ErrorMessage = "El nombre debe tener entre 2 y 255 caracteres")]
     public string? Name { get; set; }
 
-    [Url(ErrorMessage = "La URL del avatar es inválida")]
+    // Sin validación [Url]: aceptamos data URLs (data:image/...) hasta que
+    // exista un endpoint dedicado para subir avatares.
     public string? AvatarUrl { get; set; }
 
     [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
     public string? Role { get; set; }
+}
+
+/// <summary>
+/// DTO para cambiar el rol (AppRole) de un usuario — uso exclusivo del admin.
+/// </summary>
+public class UpdateUserRoleDto
+{
+    [Required(ErrorMessage = "El ID del rol es requerido")]
+    [Range(1, int.MaxValue, ErrorMessage = "ID de rol inválido")]
+    public int AppRoleId { get; set; }
+
+    /// <summary>Opcional — habilita/deshabilita el usuario en el mismo request.</summary>
+    public bool? IsActive { get; set; }
 }
 
 /// <summary>
@@ -117,4 +133,6 @@ public class LoginResponseDto
     public bool NotifyByEmail { get; set; } = true;
 	public DateTime ExpiresAt { get; set; }
     public DateTime LastConnection { get; set; }
+    /// <summary>JSON crudo con las preferencias por evento (RF-05.3).</summary>
+    public string? NotificationPreferences { get; set; }
 }

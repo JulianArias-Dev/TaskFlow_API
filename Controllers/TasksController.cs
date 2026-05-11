@@ -56,7 +56,7 @@ public class TasksController : ControllerBase
     }
 
     /// <summary>
-    /// Obtiene tareas de un proyecto específico
+    /// Obtiene tareas de un proyecto especï¿½fico
     /// </summary>
     [HttpGet("project/{projectId}")]
     [ProducesResponseType(typeof(ResponseDto<List<TaskDto>>), StatusCodes.Status200OK)]
@@ -136,30 +136,30 @@ public class TasksController : ControllerBase
     }
 
 	/// <summary>
-	/// Crea una tarea especificando su tipo (Factory Method)
+	/// Crea una tarea aplicando el patrÃ³n Factory Method del PDF â€” la
+	/// configuraciÃ³n por defecto (TypeId, PriorityId) la decide la factorÃ­a
+	/// correspondiente al taskType. El cliente no necesita conocer los IDs
+	/// del catÃ¡logo; basta con elegir el tipo.
 	/// </summary>
 	[HttpPost("by-type")]
 	[ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status201Created)]
 	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status400BadRequest)]
+	[ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
 	public async Task<ActionResult<ResponseDto<TaskDto>>> CreateTaskByType(
-	[FromQuery] int taskType, 
-	[FromQuery] string title,
-	[FromQuery] string description,
-	[FromQuery] Guid projectId)
+		[FromQuery] int taskType,
+		[FromQuery] string title,
+		[FromQuery] string? description,
+		[FromQuery] Guid columnId)
 	{
-		if (taskType <= 0 || string.IsNullOrWhiteSpace(title))
-		{
-			var errors = new List<string>();
-			if (taskType <= 0) errors.Add("Un ID de tipo de tarea válido es requerido");
-			if (string.IsNullOrWhiteSpace(title)) errors.Add("Title is required");
-
-			return BadRequest(ResponseDto.ValidationErrorResponse(errors));
-		}
+		var errors = new List<string>();
+		if (taskType <= 0) errors.Add("Un ID de tipo de tarea vÃ¡lido es requerido");
+		if (string.IsNullOrWhiteSpace(title)) errors.Add("El tÃ­tulo es requerido");
+		if (columnId == Guid.Empty) errors.Add("El ID de la columna es requerido");
+		if (errors.Count > 0) return BadRequest(ResponseDto.ValidationErrorResponse(errors));
 
 		try
 		{
-			var createdTask = await _taskService.CreateTaskByTypeAsync(taskType, title, description, projectId);
-
+			var createdTask = await _taskService.CreateTaskByTypeAsync(taskType, title, description ?? "", columnId);
 			_logger.LogInformation("Task '{TaskTitle}' created by type ID '{TaskType}'", createdTask.Title, taskType);
 
 			return CreatedAtAction(nameof(GetTaskById), new { id = createdTask.Id },
@@ -167,12 +167,11 @@ public class TasksController : ControllerBase
 		}
 		catch (KeyNotFoundException ex)
 		{
-			return BadRequest(ResponseDto.ErrorResponse(ex.Message, new List<string> { ex.Message }));
+			return NotFound(ResponseDto.NotFoundResponse(ex.Message));
 		}
-		catch (Exception ex)
+		catch (ArgumentException ex)
 		{
-			_logger.LogError(ex, "Error creating task by type");
-			return StatusCode(500, ResponseDto.ErrorResponse("An unexpected error occurred"));
+			return BadRequest(ResponseDto.ErrorResponse(ex.Message, new List<string> { ex.Message }));
 		}
 	}
 
@@ -222,7 +221,7 @@ public class TasksController : ControllerBase
 		}
 		catch (InvalidOperationException ex)
 		{
-			// Capturamos el error de lógica de negocio (ej. "Tiene subtareas")
+			// Capturamos el error de lï¿½gica de negocio (ej. "Tiene subtareas")
 			_logger.LogWarning(ex, "Conflict deleting task {TaskId}: {Message}", id, ex.Message);
 
 			// Devolvemos un 400 o 409 con el mensaje que definimos en el Service
@@ -230,15 +229,15 @@ public class TasksController : ControllerBase
 		}
 		catch (Exception ex)
 		{
-			// Capturamos errores inesperados (DB, Conexión, etc.)
+			// Capturamos errores inesperados (DB, Conexiï¿½n, etc.)
 			_logger.LogError(ex, "Unexpected error deleting task {TaskId}", id);
 			return StatusCode(StatusCodes.Status500InternalServerError,
-				ResponseDto.FailureResponse("Ocurrió un error inesperado al eliminar la tarea."));
+				ResponseDto.FailureResponse("Ocurriï¿½ un error inesperado al eliminar la tarea."));
 		}
 	}
 
 	/// <summary>
-	/// Clona una tarea (Patrón Prototype)
+	/// Clona una tarea (Patrï¿½n Prototype)
 	/// </summary>
 	[HttpPost("{taskId}/clone")]
     [ProducesResponseType(typeof(ResponseDto<TaskDto>), StatusCodes.Status201Created)]

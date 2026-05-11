@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TaskFlow_API.DTOs;
 using TaskFlow_API.Patterns.Adapter;
 using TaskFlow_API.Repositories;
@@ -19,6 +20,14 @@ public class EmailSettings
 public interface INotificationService
 {
     System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content);
+
+    /// <summary>
+    /// Versión consciente del tipo de evento — antes de enviar, consulta las
+    /// preferencias por canal del usuario (RF-05.3) y desactiva los adapters
+    /// que el usuario haya silenciado para ese tipo de evento.
+    /// </summary>
+    System.Threading.Tasks.Task NotifyAsync(Guid userId, string eventCode, string subject, string content);
+
     System.Threading.Tasks.Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId);
     System.Threading.Tasks.Task<bool> MarkAsReadAsync(Guid notificationId);
 }
@@ -44,35 +53,69 @@ public class NotificationService : INotificationService
         _logger = logger;
     }
 
-    public async System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content)
+    public System.Threading.Tasks.Task NotifyAsync(Guid userId, string subject, string content)
+        => NotifyAsync(userId, eventCode: string.Empty, subject, content);
+
+    public async System.Threading.Tasks.Task NotifyAsync(Guid userId, string eventCode, string subject, string content)
     {
         var user = await _unitOfWork.Users.GetByIdAsync(userId);
         if (user == null) return;
 
+        // Resolver preferencias del usuario (RF-05.3). Si el evento o las
+        // preferencias no existen, default = todos los canales activos.
+        var (allowInApp, allowEmail) = ResolveChannelPreferences(user, eventCode);
+
         var message = new NotificationMessage
         {
             UserId = userId,
-            ToEmail = user.NotifyByEmail ? user.Email : null,
+            EventCode = string.IsNullOrWhiteSpace(eventCode) ? null : eventCode,
+            ToEmail = (allowEmail && user.NotifyByEmail) ? user.Email : null,
             Subject = subject,
             Content = content
         };
 
-        // Itera los Adapters disponibles y envía por los que CanHandle.
-        // Los Adapters están registrados en DI como IEnumerable<INotificationAdapter>.
         foreach (var adapter in _adapters)
         {
             if (!adapter.CanHandle(message)) continue;
+
+            // Filtrado adicional por preferencia del usuario.
+            if (adapter.Channel == "InApp" && !allowInApp) continue;
+
             try
             {
                 await adapter.SendAsync(message);
-                _logger.LogDebug("Notification sent via {Channel} to user {UserId}", adapter.Channel, userId);
+                _logger.LogDebug("Notification sent via {Channel} to user {UserId} (event={EventCode})",
+                    adapter.Channel, userId, eventCode);
             }
             catch (Exception ex)
             {
-                // Un canal fallando no debe tumbar otros canales (resiliencia).
                 _logger.LogError(ex, "Adapter {Channel} failed sending notification to {UserId}", adapter.Channel, userId);
             }
         }
+    }
+
+    /// <summary>
+    /// Consulta el JSON `NotificationPreferences` del User y devuelve un par
+    /// (inApp, email) para el evento dado. Cualquier ausencia se trata como
+    /// "permitido" (default opt-in).
+    /// </summary>
+    private static (bool inApp, bool email) ResolveChannelPreferences(Models.User user, string eventCode)
+    {
+        if (string.IsNullOrWhiteSpace(eventCode) || string.IsNullOrWhiteSpace(user.NotificationPreferences))
+            return (true, true);
+
+        try
+        {
+            var prefs = JsonSerializer.Deserialize<Dictionary<string, NotificationChannelPreferenceDto>>(
+                user.NotificationPreferences,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            if (prefs != null && prefs.TryGetValue(eventCode.Trim().ToUpperInvariant(), out var v))
+                return (v.InApp, v.Email);
+        }
+        catch (JsonException) { /* JSON corrupto — default opt-in. */ }
+
+        return (true, true);
     }
 
     public async System.Threading.Tasks.Task<IEnumerable<NotificationDto>> GetUserNotificationsAsync(Guid userId)

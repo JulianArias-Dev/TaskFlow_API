@@ -110,13 +110,23 @@ public class TaskServiceProxy : ITaskService
         return await _real.DeleteTaskAsync(id);
     }
 
-    public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskType, string title, string description, Guid projectId)
+    public async System.Threading.Tasks.Task<TaskDto> CreateTaskByTypeAsync(int taskType, string title, string description, Guid columnId)
     {
-        var project = await _uow.Projects.GetByIdAsync(projectId)
-            ?? throw new KeyNotFoundException($"Project {projectId} not found");
+        // Necesitamos remontar la cadena Column -> Board -> Project para validar
+        // permisos y estado del proyecto antes de delegar al servicio real.
+        var column = await _uow.Columns.GetByIdAsync(columnId)
+            ?? throw new KeyNotFoundException($"Column {columnId} not found");
+
+        var board = await _uow.Boards.GetByIdAsync(column.BoardId)
+            ?? throw new KeyNotFoundException($"Board {column.BoardId} not found");
+
+        var project = await _uow.Projects.GetByIdAsync(board.ProjectId)
+            ?? throw new KeyNotFoundException($"Project {board.ProjectId} not found");
+
         EnsureProjectIsActive(project);
-        await EnsureCurrentUserIsAuthorized(projectId, project.OwnerId);
-        return await _real.CreateTaskByTypeAsync(taskType, title, description, projectId);
+        await EnsureCurrentUserIsAuthorized(board.ProjectId, project.OwnerId);
+
+        return await _real.CreateTaskByTypeAsync(taskType, title, description, columnId);
     }
 
     public async System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId)

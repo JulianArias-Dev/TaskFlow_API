@@ -46,8 +46,28 @@ export interface LoginResponse {
   token: string;
   themePreference: string;
   notifyByEmail: boolean;
+  /** JSON crudo (string) con las preferencias de notificación. */
+  notificationPreferences?: string | null;
   expiresAt: string;
   lastConnection: string;
+}
+
+// -------------------- Notification Preferences --------------------
+
+export interface NotificationChannelPreference {
+  inApp: boolean;
+  email: boolean;
+}
+
+/**
+ * Mapa código-de-evento → preferencias por canal.
+ * Códigos soportados por el backend: ASSIGNED, DUE_OVERDUE, COMMENT,
+ * STATUS_CHANGE. El backend completa los que falten con defaults (todo activo).
+ */
+export type NotificationPreferences = Record<string, NotificationChannelPreference>;
+
+export interface NotificationPreferencesPayload {
+  preferences: NotificationPreferences;
 }
 
 export interface TokenValidationInfo {
@@ -79,8 +99,9 @@ export interface UserApi {
 
 export interface CatalogItem {
   id: number;
-  code: string;
   name: string;
+  /** Algunos catálogos podrían exponer un código corto en el futuro — opcional. */
+  code?: string;
   description?: string;
 }
 

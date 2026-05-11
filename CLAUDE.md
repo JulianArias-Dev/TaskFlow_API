@@ -60,7 +60,7 @@ Definidos en [Data/TaskFlowDbContext.cs](Data/TaskFlowDbContext.cs) → `Configu
 
 | Tabla | IDs |
 | --- | --- |
-| `AppRoles` | 1=Admin, **2=CommonUser** *(rol por defecto en registro)* |
+| `AppRoles` | 1=Admin, **2=CommonUser** *(rol por defecto en registro)*. La app además siembra al arrancar el usuario `superadmin@taskflow.com` / `Admin123*` con AppRoleId=1. |
 | `ProjectRoles` | 1=Creator, 2=Project Manager, 3=Developer |
 | `ProjectStatuses` | 1=Active, 2=Completed, 3=On Hold, 4=Cancelled |
 | `TaskPriorities` | 1=LOW, 2=MEDIUM, 3=HIGH, 4=CRITICAL |
@@ -130,10 +130,28 @@ El frontend en dev hace proxy de `/api` a `VITE_BACKEND_PROXY_URL` (default `htt
 - **Configuración global** — la pantalla admin sólo gestiona usuarios. No hay endpoint `Settings`.
 - **Notificaciones en tiempo real** — actualmente polling cada 20 s sobre `/api/Users/my-notifications` (antes era `onSnapshot` de Firestore).
 
+### RF-01.3 + RF-09.1 — Roles y administración de usuarios
+
+- **SuperAdmin seed (vía migración)**: declarado con `HasData` en [TaskFlowDbContext.ConfigureCatalogs](Data/TaskFlowDbContext.cs). Email `superadmin@taskflow.com` / password `Admin123*`, AppRoleId=1, Id fijo `00000000-…-001`. El hash BCrypt está pre-computado en el DbContext (no en runtime). Migración asociada: `SeedSuperAdmin`. Si cambias la contraseña, regenera el hash con `BCrypt.Net.BCrypt.HashPassword("…")` y crea una nueva migración.
+- **Auto-promote**: si la tabla `Users` está vacía cuando alguien se registra, se le promueve a Admin automáticamente. Sirve como red de seguridad si el seed no se ejecuta.
+- **Cambio de rol**: `PUT /api/Users/{id}/role` (Body: `{ appRoleId, isActive? }`) — sólo accesible para usuarios con claim `Role=Admin`. Valida que el AppRoleId existe en el catálogo antes de hacer UPDATE.
+- **UI**: pestaña *Administración* visible cuando `profile.role?.toUpperCase() === 'ADMIN'` (case-insensitive, antes fallaba porque el backend envía "Admin" y la comparación esperaba "ADMIN"). Dropdown de rol se carga vía `useCatalog('app-roles')`.
+
+### RF-05.3 — Preferencias de notificación
+
+Implementado. El usuario configura por evento (`ASSIGNED`, `DUE_OVERDUE`, `COMMENT`, `STATUS_CHANGE`) qué canales reciben (`inApp`, `email`):
+- **BD**: columna `Users.NotificationPreferences` (nvarchar(max), JSON) añadida vía migración `20260511202302_AddNotificationPreferences`.
+- **API**: `GET/PUT /api/Users/me/notification-preferences` con DTO `NotificationPreferencesDto` (mapa código→canales).
+- **Aplicación**: `NotificationService.NotifyAsync(userId, eventCode, …)` consulta las preferencias antes de iterar los Adapters; si el canal está silenciado se omite. Los callers (TaskService, ProjectService) pasan `"ASSIGNED"`, `"STATUS_CHANGE"`, etc.
+- **UI**: pestaña "Notificaciones" del perfil ([ProfileDashboard.tsx](TaskFlow_front/src/features/profile/ProfileDashboard.tsx)). Los toggles se persisten **al instante** vía `persistNotificationPrefs` (no requieren entrar en modo edición).
+
 ## Gotchas / tribal knowledge
 
 - **Encoding de archivos `.cs`**: en algún momento se guardaron strings con `�` literales (replacement char) en lugar de tildes/`ñ`. Los DTOs ya están limpios; si encuentras `�` en otro archivo (`Services/`, `Middleware/`, `Controllers/`), arréglalo con búsqueda/reemplazo en lote como hicimos en [DTOs/UserDto.cs](DTOs/UserDto.cs).
-- **`ProjectBuilder` y `StatusId`**: el builder ahora inicializa `StatusId = 1` por defecto y expone `WithStatusId(int)`. Antes lo dejaba en 0 y reventaba FK en `SaveChangesAsync`. Si añades nuevos builders, replica el patrón para todos los FKs obligatorios.
+- **FKs obligatorios en entidades nuevas**: los modelos `Project`, `Task`, etc. tienen FKs `int` no nullable (`StatusId`, `PriorityId`, `TypeId`, `AppRoleId`, …). El default `0` **no existe en los catálogos** y revienta `SaveChangesAsync` con `FK_…_constraint`. Si creas una entidad con un FK que el cliente no envía, asígnale un default razonable en el service/builder. Casos hechos: `ProjectBuilder.StatusId = 1`, `TaskService.CreateTaskAsync.StatusId = 1`. Replica este patrón al añadir nuevas entidades.
+- **Navegaciones declaradas `null!` (Status, Owner, Project, Type, Priority, …)**: son `null` cuando la entidad se acaba de crear o cuando la query no las incluye. Cualquier `MapToDto` debe usar `?.Name ?? ""` y nunca `.ToString()` sobre la navegación (devolvía el nombre del tipo C#, no el valor del catálogo). Tras `SaveChangesAsync` en un *create*, recarga con `GetXxxWithDetailsAsync` antes de mapear, o tolera nulls en el mapper. Casos de referencia: [ProjectService.CreateProjectAsync](Services/ProjectService.cs), [TaskService.MapToDto](Services/TaskService.cs), [MappingProfile](Mappings/MappingProfile.cs).
+- **Factory Method del PDF (RF/2.3) está en `POST /api/Tasks/by-type`**. La interfaz `ITaskFactory.CreateTask(title, description, columnId)` exige `columnId` porque es FK obligatoria. Cada factory concreta (`BugTaskFactory`, `FeatureTaskFactory`, etc.) setea sus propios defaults (TypeId/PriorityId). El frontend usa este endpoint en `dbService.createTask` y luego hace un PUT con los campos extra (fecha, asignados) — así demuestra el patrón sin perder la flexibilidad del formulario.
+- **Frontend usa los catálogos del backend**: hook [useCatalog](TaskFlow_front/src/hooks/useCatalog.ts) carga desde `/api/BaseCatalog/*` y se usa en TaskModal (types/priorities) y ProjectSettingsModal (project-status/roles). Los `<option>` ya no están hardcoded — se sincronizan automáticamente con los seeds. Los nombres que vienen del backend ("LOW", "Active", ...) se muestran tal cual; los comparadores en UI son case-insensitive y aceptan tanto los nombres del backend como los nombres legacy en español.
 - **Migrations en startup**: [Program.cs](Program.cs) llama `await db.Database.MigrateAsync()` antes de aceptar tráfico. Los seeds van en `HasData()` y se aplican vía la migración inicial `20260511150045_Initial-Catalog`.
 - **JWT blacklist**: `ITokenBlacklistService` es **Singleton** (cache en memoria compartido globalmente). Al arrancar, hidrata el cache desde la tabla `RevokedTokens` (ver final de [Program.cs](Program.cs)).
 - **Frontend no tiene tests**. Para verificar cambios: `npx tsc --noEmit` y luego `npm run build`. El backend tampoco tiene proyecto de tests.

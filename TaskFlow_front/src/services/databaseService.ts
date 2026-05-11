@@ -41,19 +41,23 @@ import type {
 // ---------------------------------------------------------------------------
 
 function statusToEnum(status: string): ProjectStatus {
-  switch (status?.toUpperCase()) {
-    case 'EN_PROGRESO':
-    case 'IN_PROGRESS':
+  const norm = (status ?? '').toUpperCase().replace(/[\s_-]+/g, '');
+  switch (norm) {
+    case 'ENPROGRESO':
+    case 'INPROGRESS':
     case 'ACTIVE':
       return 'EN_PROGRESO' as ProjectStatus;
     case 'PAUSADO':
     case 'PAUSED':
+    case 'ONHOLD':
       return 'PAUSADO' as ProjectStatus;
     case 'COMPLETADO':
     case 'COMPLETED':
       return 'COMPLETADO' as ProjectStatus;
     case 'ARCHIVADO':
     case 'ARCHIVED':
+    case 'CANCELLED':
+    case 'CANCELED':
       return 'ARCHIVADO' as ProjectStatus;
     case 'PLANIFICADO':
     case 'PLANNED':
@@ -99,39 +103,6 @@ function mapProject(p: ProjectApi): Project {
   };
 }
 
-function priorityToEnum(p: string): Task['priority'] {
-  switch (p?.toUpperCase()) {
-    case 'BAJA':
-    case 'LOW':
-      return 'BAJA';
-    case 'ALTA':
-    case 'HIGH':
-      return 'ALTA';
-    case 'URGENTE':
-    case 'URGENT':
-    case 'CRITICAL':
-      return 'URGENTE';
-    case 'MEDIA':
-    case 'MEDIUM':
-    default:
-      return 'MEDIA';
-  }
-}
-
-function typeToEnum(t: string): Task['type'] {
-  switch (t?.toUpperCase()) {
-    case 'BUG':
-      return 'BUG';
-    case 'FEATURE':
-      return 'FEATURE';
-    case 'IMPROVEMENT':
-    case 'ENHANCEMENT':
-      return 'IMPROVEMENT';
-    default:
-      return 'TASK';
-  }
-}
-
 function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
   return {
     id: t.id,
@@ -140,8 +111,11 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     title: t.title,
     description: t.description,
     status: t.columnId, // status del frontend = columnId del backend
-    priority: priorityToEnum(t.priority),
-    type: typeToEnum(t.type),
+    // Mantenemos los nombres tal como vienen del catálogo del backend
+    // (LOW/MEDIUM/HIGH/CRITICAL para Priority; Feature/Bug/Task/... para Type).
+    // El componente de UI debe ser tolerante a estos valores.
+    priority: t.priority ?? 'MEDIUM',
+    type: t.type ?? 'Task',
     dueDate: t.dueDate ?? null,
     estimatedHours: t.estimatedHours,
     loggedHours: t.actualHours,
@@ -293,11 +267,21 @@ export class DatabaseService {
     await api.delete(`/Projects/${projectId}`);
   }
 
-  async addProjectMember(projectId: string, email: string, _role: string): Promise<boolean> {
-    // 1) Resolver email → userId
+  /**
+   * Agrega un miembro a un proyecto. `projectRoleId` corresponde al catálogo
+   * `ProjectRoles` del backend; si no se pasa el backend lo defaultea a
+   * Developer.
+   */
+  async addProjectMember(
+    projectId: string,
+    email: string,
+    projectRoleId?: number,
+  ): Promise<boolean> {
     const user = await api.get<UserApi>(`/Users/email/${encodeURIComponent(email)}`, { unwrap: false });
     if (!user?.id) throw new Error('Usuario no encontrado o no registrado en el sistema.');
-    await api.post(`/Projects/${projectId}/members/${user.id}`);
+    await api.post(`/Projects/${projectId}/members/${user.id}`, undefined, {
+      query: projectRoleId ? { projectRoleId } : undefined,
+    });
     return true;
   }
 
@@ -398,31 +382,50 @@ export class DatabaseService {
 
   // ============================ TAREAS ============================
 
+  /**
+   * Crea una tarea. Si el caller especifica un tipo (Feature, Bug, ...) usamos
+   * el endpoint `POST /api/Tasks/by-type` que aplica el **Factory Method**
+   * del PDF: el backend resuelve los defaults razonables para ese tipo. Para
+   * los campos extra (dueDate, prioridad explícita, asignados) hacemos un
+   * `PUT` posterior con `updateTask` — así demostramos el patrón sin perder
+   * la flexibilidad del formulario.
+   */
   async createTask(
     projectId: string,
     taskData: Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
   ): Promise<string> {
     this.requireUser();
 
-    const [priorities, types] = await Promise.all([
-      this.catalog.getTaskPriorities(),
-      this.catalog.getTaskTypes(),
-    ]);
+    const types = await this.catalog.getTaskTypes();
+    const typeId = await this.catalog.findId(types, taskData.type || 'Task', 5);
 
-    const payload: CreateTaskRequest = {
-      title: taskData.title,
-      description: taskData.description ?? '',
-      typeId: await this.catalog.findId(types, taskData.type || 'TASK', 1),
-      priorityId: await this.catalog.findId(priorities, taskData.priority || 'MEDIA', 2),
-      columnId: taskData.status, // status del frontend almacena el columnId
-      assignedToUserId: taskData.assigneeIds?.[0],
-      dueDate: taskData.dueDate ?? null,
-      estimatedHours: taskData.estimatedHours ?? 0,
-      tags: (taskData.labels ?? []).map((l) => l.name),
-    };
+    // 1) Factory Method — crea la tarea con defaults del tipo.
+    const created = await api.post<TaskApi>(
+      '/Tasks/by-type',
+      undefined,
+      {
+        query: {
+          taskType: typeId,
+          title: taskData.title,
+          description: taskData.description ?? '',
+          columnId: taskData.status, // status del frontend = columnId del backend
+        },
+      },
+    );
 
-    const created = await api.post<TaskApi>('/Tasks', payload);
-    void projectId; // projectId queda implícito vía column→board→project
+    // 2) Si el formulario aportó datos extra que el Factory no setea, los
+    //    aplicamos vía PUT (prioridad explícita, fechas, asignados, etiquetas).
+    const needsUpdate =
+      !!taskData.priority ||
+      !!taskData.dueDate ||
+      taskData.estimatedHours !== undefined ||
+      (taskData.assigneeIds && taskData.assigneeIds.length > 0) ||
+      (taskData.labels && taskData.labels.length > 0);
+
+    if (needsUpdate) {
+      await this.updateTask(projectId, created.id, taskData);
+    }
+
     return created.id;
   }
 

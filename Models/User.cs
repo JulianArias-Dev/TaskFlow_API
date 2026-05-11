@@ -24,6 +24,16 @@ namespace TaskFlow_API.Models
         /// <summary>Si el usuario quiere recibir notificaciones por email.</summary>
         public bool NotifyByEmail { get; set; } = true;
 
+        /// <summary>
+        /// Preferencias por evento (RF-05.3) — qué tipos de notificación recibe
+        /// y por qué canal. Se persiste como JSON para evolucionar sin migrar.
+        /// Forma esperada:
+        ///   { "ASSIGNED": { "inApp": true, "email": true },
+        ///     "DUE_OVERDUE": { ... }, "COMMENT": { ... }, "STATUS_CHANGE": { ... } }
+        /// `null` significa "usar defaults" (todo activo).
+        /// </summary>
+        public string? NotificationPreferences { get; set; }
+
         // ----- Metadata -----
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
