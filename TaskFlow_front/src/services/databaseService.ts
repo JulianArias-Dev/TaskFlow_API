@@ -1,45 +1,206 @@
-import { 
-  collection, 
-  doc, 
-  setDoc, 
-  getDoc, 
-  getDocs, 
-  updateDoc, 
-  deleteDoc, 
-  query, 
-  where, 
-  serverTimestamp,
-  DocumentData,
-  WithFieldValue
-} from 'firebase/firestore';
-import { db, auth } from '../lib/firebase';
-import { Project, Board, Task, ProjectStatus, AppNotification, SavedFilter } from '../types/models';
+/**
+ * DatabaseService — adaptador sobre la TaskFlow API (.NET).
+ *
+ * Reemplaza la implementación Firestore original. Mantiene el patrón Singleton
+ * y la superficie pública que ya consumían los componentes para minimizar
+ * refactors, pero internamente todo viaja por REST.
+ *
+ * El modelo legado del frontend (Project/Board/Task con campos sueltos como
+ * `key`, `status`, `assigneeIds`, etc.) se mapea desde los DTOs del backend al
+ * vuelo, exponiendo los tipos de `types/models.ts` que ya espera la UI.
+ */
 
-enum OperationType {
-  CREATE = 'create',
-  UPDATE = 'update',
-  DELETE = 'delete',
-  LIST = 'list',
-  GET = 'get',
-  WRITE = 'write',
-}
+import { api } from '../lib/api';
+import { auth } from '../lib/firebase';
+import type {
+  Board,
+  BoardColumn,
+  Project,
+  ProjectStatus,
+  SavedFilter,
+  Task,
+} from '../types/models';
+import type {
+  BoardApi,
+  CatalogItem,
+  ColumnApi,
+  CreateBoardRequest,
+  CreateProjectRequest,
+  CreateTaskRequest,
+  NotificationApi,
+  ProjectApi,
+  SavedFilterApi,
+  TaskApi,
+  UpdateProjectRequest,
+  UpdateTaskRequest,
+  UserApi,
+} from '../types/api';
 
-interface FirestoreErrorInfo {
-  error: string;
-  operationType: OperationType;
-  path: string | null;
-  authInfo: {
-    userId?: string | null;
-    email?: string | null;
+// ---------------------------------------------------------------------------
+// Mappers backend ↔ frontend
+// ---------------------------------------------------------------------------
+
+function statusToEnum(status: string): ProjectStatus {
+  switch (status?.toUpperCase()) {
+    case 'EN_PROGRESO':
+    case 'IN_PROGRESS':
+    case 'ACTIVE':
+      return 'EN_PROGRESO' as ProjectStatus;
+    case 'PAUSADO':
+    case 'PAUSED':
+      return 'PAUSADO' as ProjectStatus;
+    case 'COMPLETADO':
+    case 'COMPLETED':
+      return 'COMPLETADO' as ProjectStatus;
+    case 'ARCHIVADO':
+    case 'ARCHIVED':
+      return 'ARCHIVADO' as ProjectStatus;
+    case 'PLANIFICADO':
+    case 'PLANNED':
+    default:
+      return 'PLANIFICADO' as ProjectStatus;
   }
 }
 
-/**
- * Singleton DatabaseService
- * Encapsula todas las operaciones CRUD del sistema.
- */
+function mapColumn(c: ColumnApi): BoardColumn {
+  return {
+    id: c.id,
+    name: c.name,
+    wipLimit: c.wipLimit ?? null,
+  };
+}
+
+function mapBoard(b: BoardApi): Board {
+  return {
+    id: b.id,
+    projectId: b.projectId,
+    name: b.name,
+    type: 'kanban',
+    description: b.description,
+    order: b.displayOrder,
+    columns: (b.columns ?? []).map(mapColumn),
+    createdAt: b.createdAt,
+    updatedAt: b.updatedAt,
+  };
+}
+
+function mapProject(p: ProjectApi): Project {
+  return {
+    id: p.id,
+    name: p.name,
+    description: p.description ?? '',
+    status: statusToEnum(p.status),
+    startDate: p.startDate ?? null,
+    endDate: p.endDate ?? null,
+    ownerId: p.ownerId,
+    createdAt: p.createdAt,
+    updatedAt: p.updatedAt,
+    color: p.color,
+  };
+}
+
+function priorityToEnum(p: string): Task['priority'] {
+  switch (p?.toUpperCase()) {
+    case 'BAJA':
+    case 'LOW':
+      return 'BAJA';
+    case 'ALTA':
+    case 'HIGH':
+      return 'ALTA';
+    case 'URGENTE':
+    case 'URGENT':
+    case 'CRITICAL':
+      return 'URGENTE';
+    case 'MEDIA':
+    case 'MEDIUM':
+    default:
+      return 'MEDIA';
+  }
+}
+
+function typeToEnum(t: string): Task['type'] {
+  switch (t?.toUpperCase()) {
+    case 'BUG':
+      return 'BUG';
+    case 'FEATURE':
+      return 'FEATURE';
+    case 'IMPROVEMENT':
+    case 'ENHANCEMENT':
+      return 'IMPROVEMENT';
+    default:
+      return 'TASK';
+  }
+}
+
+function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
+  return {
+    id: t.id,
+    projectId,
+    boardId,
+    title: t.title,
+    description: t.description,
+    status: t.columnId, // status del frontend = columnId del backend
+    priority: priorityToEnum(t.priority),
+    type: typeToEnum(t.type),
+    dueDate: t.dueDate ?? null,
+    estimatedHours: t.estimatedHours,
+    loggedHours: t.actualHours,
+    assigneeIds: t.assignedUserIds ?? [],
+    labels: (t.tags ?? []).map((name) => ({ name, color: '#3498db' })),
+    createdAt: t.createdAt,
+    updatedAt: t.updatedAt,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cache de catálogos (status/priority/type) — los IDs viven en el backend.
+// ---------------------------------------------------------------------------
+
+class CatalogCache {
+  private taskStatuses?: CatalogItem[];
+  private taskPriorities?: CatalogItem[];
+  private taskTypes?: CatalogItem[];
+  private projectStatuses?: CatalogItem[];
+
+  async getTaskStatuses(): Promise<CatalogItem[]> {
+    if (!this.taskStatuses) {
+      this.taskStatuses = await api.get<CatalogItem[]>('/BaseCatalog/task-status', { unwrap: false });
+    }
+    return this.taskStatuses;
+  }
+  async getTaskPriorities(): Promise<CatalogItem[]> {
+    if (!this.taskPriorities) {
+      this.taskPriorities = await api.get<CatalogItem[]>('/BaseCatalog/task-priorities', { unwrap: false });
+    }
+    return this.taskPriorities;
+  }
+  async getTaskTypes(): Promise<CatalogItem[]> {
+    if (!this.taskTypes) {
+      this.taskTypes = await api.get<CatalogItem[]>('/BaseCatalog/task-types', { unwrap: false });
+    }
+    return this.taskTypes;
+  }
+  async getProjectStatuses(): Promise<CatalogItem[]> {
+    if (!this.projectStatuses) {
+      this.projectStatuses = await api.get<CatalogItem[]>('/BaseCatalog/project-status', { unwrap: false });
+    }
+    return this.projectStatuses;
+  }
+
+  async findId(items: CatalogItem[], hint: string, fallback = 1): Promise<number> {
+    const norm = hint.toUpperCase();
+    const match = items.find((i) => i.code?.toUpperCase() === norm || i.name?.toUpperCase() === norm);
+    return match?.id ?? fallback;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// DatabaseService — singleton
+// ---------------------------------------------------------------------------
+
 export class DatabaseService {
   private static instance: DatabaseService;
+  private catalog = new CatalogCache();
 
   private constructor() {}
 
@@ -50,561 +211,329 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  private handleAuthError(op: OperationType, path: string | null, error: any) {
-    const errInfo: FirestoreErrorInfo = {
-      error: error instanceof Error ? error.message : String(error),
-      operationType: op,
-      path,
-      authInfo: {
-        userId: auth.currentUser?.uid,
-        email: auth.currentUser?.email,
-      }
+  private requireUser() {
+    if (!auth.currentUser) throw new Error('No autenticado');
+    return auth.currentUser;
+  }
+
+  // ============================ PROYECTOS ============================
+
+  async createProject(
+    projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>,
+  ): Promise<string> {
+    const user = this.requireUser();
+    const projectStatuses = await this.catalog.getProjectStatuses();
+    const statusId = await this.catalog.findId(projectStatuses, projectData.status || 'PLANIFICADO', 1);
+
+    const toIsoOrNull = (v: unknown): string | null => {
+      if (v === null || v === undefined || v === '') return null;
+      return String(v);
     };
-    console.error(`Error en DatabaseService [${op}]:`, JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
+
+    const payload: CreateProjectRequest = {
+      name: projectData.name,
+      description: projectData.description ?? '',
+      color: projectData.color ?? '#3498db',
+      startDate: toIsoOrNull(projectData.startDate) ?? new Date().toISOString(),
+      endDate: toIsoOrNull(projectData.endDate),
+      statusId,
+    };
+
+    const created = await api.post<ProjectApi>('/Projects', payload, {
+      query: { ownerId: user.uid },
+    });
+
+    return created.id;
   }
 
-  // --- PROYECTOS ---
+  async getProjects(): Promise<{ project: Project; progress: number }[]> {
+    const user = this.requireUser();
+    const [owned, member] = await Promise.all([
+      api.get<ProjectApi[]>(`/Projects/owner/${user.uid}`).catch(() => []),
+      api.get<ProjectApi[]>(`/Projects/member/${user.uid}`).catch(() => []),
+    ]);
 
-  async createProject(projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt' | 'ownerId'>): Promise<string> {
-    if (!auth.currentUser) throw new Error("No autenticado");
-    
-    const projectRef = doc(collection(db, 'projects'));
-    const path = `projects/${projectRef.id}`;
-    
-    try {
-      await setDoc(projectRef, {
-        ...projectData,
-        id: projectRef.id,
-        ownerId: auth.currentUser.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      // automatically add the creator as member
-      await setDoc(doc(db, 'projects', projectRef.id, 'members', auth.currentUser.uid), {
-        uid: auth.currentUser.uid,
-        email: auth.currentUser.email,
-        role: 'ADMIN',
-        joinedAt: serverTimestamp()
-      });
+    const byId = new Map<string, ProjectApi>();
+    for (const p of [...owned, ...member]) byId.set(p.id, p);
 
-      // create a default board
-      const defaultColumns = [
-        { id: 'col_todo', name: 'Por hacer' },
-        { id: 'col_in_progress', name: 'En progreso' },
-        { id: 'col_in_review', name: 'En revisión' },
-        { id: 'col_done', name: 'Completado' }
-      ];
-
-      await this.createBoard(projectRef.id, {
-        name: 'Tablero Principal',
-        type: 'kanban',
-        description: 'Gestión general de tareas',
-        order: 1,
-        columns: defaultColumns
-      });
-
-      // Add Audit log
-      await this.auditProjectAction(projectRef.id, 'CREATE', 'PROJECT', projectRef.id, 'Project creation');
-
-      return projectRef.id;
-    } catch (error) {
-      this.handleAuthError(OperationType.CREATE, path, error);
-      return '';
+    const result: { project: Project; progress: number }[] = [];
+    for (const p of byId.values()) {
+      const project = mapProject(p);
+      const tasks = await this.getTasks(p.id);
+      const done = tasks.filter((t) => t.status?.toLowerCase().includes('done') || t.status?.toLowerCase().includes('hecho')).length;
+      const progress = tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100);
+      result.push({ project, progress });
     }
-  }
-
-  async getProjects(): Promise<{ project: Project, progress: number }[]> {
-    if (!auth.currentUser) throw new Error("No autenticado");
-    const uid = auth.currentUser.uid;
-    const path = 'projects';
-    
-    try {
-      // Get owned projects
-      const qOwned = query(collection(db, 'projects'), where('ownerId', '==', uid));
-      const ownedSnapshot = await getDocs(qOwned);
-      const ownedProjects = ownedSnapshot.docs.map(doc => doc.data() as Project);
-      
-      // Get member projects
-      const memberSnapshot = await getDocs(collection(db, 'users', uid, 'projects'));
-      const memberProjectIds = memberSnapshot.docs.map(doc => doc.data().projectId).filter(id => id);
-      
-      const ownedIds = new Set(ownedProjects.map(p => p.id));
-      const uniqueMemberIds = Array.from(new Set(memberProjectIds)).filter(id => id && !ownedIds.has(id));
-      
-      const memberProjects = await Promise.all(
-        uniqueMemberIds.map(async id => {
-          try {
-            const snap = await getDoc(doc(db, 'projects', id!));
-            return snap.exists() ? snap.data() as Project : null;
-          } catch(e) { return null; }
-        })
-      );
-      
-      const allProjects = [...ownedProjects, ...memberProjects.filter(p => p !== null) as Project[]];
-      
-      // Load progress
-      return await Promise.all(allProjects.map(async (project) => {
-         const boards = await this.getBoards(project.id);
-         let doneColIds = ['col_done', 'done'];
-         if (boards && boards.length > 0 && boards[0].columns) {
-           const boardDoneColIds = boards[0].columns.filter(c => c.name.toLowerCase().includes('hecho') || c.name.toLowerCase().includes('completad') || c.name.toLowerCase().includes('done')).map(c => c.id);
-           if (boardDoneColIds.length > 0) doneColIds = boardDoneColIds;
-         }
-         
-         const tasks = await this.getTasks(project.id);
-         const completed = tasks.filter(t => doneColIds.includes(t.status)).length;
-         const progress = tasks.length === 0 ? 0 : Math.round((completed / tasks.length) * 100);
-         return { project, progress };
-      }));
-    } catch (error) {
-      this.handleAuthError(OperationType.LIST, path, error);
-      return [];
-    }
+    return result;
   }
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<void> {
-    const path = `projects/${projectId}`;
-    try {
-      await updateDoc(doc(db, 'projects', projectId), {
-        ...updates,
-        updatedAt: serverTimestamp()
-      });
-      await this.auditProjectAction(projectId, 'UPDATE', 'PROJECT', projectId, 'Project updated');
-    } catch (error) {
-      this.handleAuthError(OperationType.UPDATE, path, error);
+    const toIsoOrNull = (v: unknown): string | null | undefined => {
+      if (v === undefined) return undefined;
+      if (v === null || v === '') return null;
+      return String(v);
+    };
+
+    const payload: UpdateProjectRequest = {
+      name: updates.name,
+      description: updates.description,
+      startDate: toIsoOrNull(updates.startDate),
+      endDate: toIsoOrNull(updates.endDate),
+    };
+
+    if (updates.status) {
+      const statuses = await this.catalog.getProjectStatuses();
+      payload.statusId = await this.catalog.findId(statuses, updates.status, 1);
     }
+
+    await api.put<ProjectApi>(`/Projects/${projectId}`, payload);
   }
 
   async deleteProject(projectId: string): Promise<void> {
-    const path = `projects/${projectId}`;
-    try {
-      await deleteDoc(doc(db, 'projects', projectId));
-    } catch (error) {
-      this.handleAuthError(OperationType.DELETE, path, error);
-    }
+    await api.delete(`/Projects/${projectId}`);
   }
 
-  async addProjectMember(projectId: string, email: string, role: string): Promise<boolean> {
-    const path = `projects/${projectId}/members`;
-    try {
-      const emailSnap = await getDoc(doc(db, 'user_emails', btoa(email.toLowerCase())));
-      if (!emailSnap.exists()) {
-        throw new Error('Usuario no encontrado o no registrado en el sistema.');
+  async addProjectMember(projectId: string, email: string, _role: string): Promise<boolean> {
+    // 1) Resolver email → userId
+    const user = await api.get<UserApi>(`/Users/email/${encodeURIComponent(email)}`, { unwrap: false });
+    if (!user?.id) throw new Error('Usuario no encontrado o no registrado en el sistema.');
+    await api.post(`/Projects/${projectId}/members/${user.id}`);
+    return true;
+  }
+
+  async getProjectMembers(projectId: string): Promise<{ uid: string; email: string; role: string }[]> {
+    const users = await api.get<UserApi[]>(`/Users/project/${projectId}`, { unwrap: false });
+    return (users ?? []).map((u) => ({ uid: u.id, email: u.email, role: u.role }));
+  }
+
+  async cloneProject(projectId: string, _newName: string): Promise<string | null> {
+    const user = this.requireUser();
+    const clone = await api.post<ProjectApi>(`/Projects/${projectId}/clone`, undefined, {
+      query: { newOwnerId: user.uid },
+    });
+    return clone?.id ?? null;
+  }
+
+  // ============================ TABLEROS ============================
+
+  async createBoard(
+    projectId: string,
+    boardData: Omit<Board, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
+  ): Promise<string> {
+    const payload: CreateBoardRequest = {
+      name: boardData.name,
+      description: boardData.description ?? '',
+      projectId,
+      displayOrder: boardData.order ?? 0,
+    };
+    const created = await api.post<BoardApi>('/Boards', payload);
+
+    // Crear columnas por defecto si las pasó el caller.
+    if (boardData.columns && boardData.columns.length > 0) {
+      for (let i = 0; i < boardData.columns.length; i++) {
+        const col = boardData.columns[i];
+        await api
+          .post('/Columns', {
+            name: col.name,
+            boardId: created.id,
+            displayOrder: i,
+            wipLimit: col.wipLimit ?? null,
+          })
+          .catch((e) => console.warn('[createBoard] failed to create column', col.name, e));
       }
-      
-      const { uid } = emailSnap.data();
-      
-      await setDoc(doc(db, 'projects', projectId, 'members', uid), {
-        uid,
-        email: email.toLowerCase(),
-        role,
-        joinedAt: serverTimestamp()
-      });
-      
-      await setDoc(doc(db, 'users', uid, 'projects', projectId), {
-        projectId,
-        joinedAt: serverTimestamp()
-      });
-      
-      return true;
-    } catch (error) {
-      this.handleAuthError(OperationType.CREATE, path, error);
-      return false;
     }
-  }
-
-  async getProjectMembers(projectId: string): Promise<any[]> {
-    const path = `projects/${projectId}/members`;
-    try {
-      const snap = await getDocs(collection(db, 'projects', projectId, 'members'));
-      return snap.docs.map(doc => doc.data());
-    } catch (error) {
-      this.handleAuthError(OperationType.LIST, path, error);
-      return [];
-    }
-  }
-
-  async cloneProject(projectId: string, newName: string): Promise<string | null> {
-    const path = `projects/${projectId}`;
-    try {
-      const orgProjectSnap = await getDoc(doc(db, 'projects', projectId));
-      if (!orgProjectSnap.exists()) throw new Error('Project not found');
-      
-      const orgProject = orgProjectSnap.data() as Project;
-      
-      const newProjectId = await this.createProject({
-        name: newName,
-        key: orgProject.key,
-        description: orgProject.description || '',
-        status: ProjectStatus.PLANIFICADO,
-        leadId: auth.currentUser!.uid,
-      });
-
-      if (!newProjectId) return null;
-
-      const boards = await this.getBoards(projectId);
-      for (const board of boards) {
-        await this.createBoard(newProjectId, {
-          name: board.name,
-          type: board.type,
-          description: board.description || '',
-          order: board.order,
-          columns: board.columns || []
-        });
-      }
-
-      return newProjectId;
-    } catch (error) {
-      this.handleAuthError(OperationType.CREATE, path, error);
-      return null;
-    }
-  }
-
-  // --- TABLEROS ---
-
-  async createBoard(projectId: string, boardData: Omit<Board, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>): Promise<string> {
-    const boardsRef = collection(db, 'projects', projectId, 'boards');
-    const boardDoc = doc(boardsRef);
-    const path = `projects/${projectId}/boards/${boardDoc.id}`;
-
-    try {
-      await setDoc(boardDoc, {
-        ...boardData,
-        id: boardDoc.id,
-        projectId,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      return boardDoc.id;
-    } catch (error) {
-      this.handleAuthError(OperationType.CREATE, path, error);
-      return '';
-    }
+    return created.id;
   }
 
   async getBoards(projectId: string): Promise<Board[]> {
-    const path = `projects/${projectId}/boards`;
-    try {
-      const q = query(collection(db, 'projects', projectId, 'boards'));
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as Board).sort((a, b) => (a.order || 0) - (b.order || 0));
-    } catch (error) {
-      this.handleAuthError(OperationType.LIST, path, error);
-      return [];
-    }
+    const boards = await api.get<BoardApi[]>(`/Boards/project/${projectId}`);
+    return (boards ?? [])
+      .map(mapBoard)
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
   }
 
-  async updateBoard(projectId: string, boardId: string, updates: Partial<Board>): Promise<void> {
-    const path = `projects/${projectId}/boards/${boardId}`;
-    try {
-      await updateDoc(doc(db, 'projects', projectId, 'boards', boardId), {
-        ...updates,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      this.handleAuthError(OperationType.UPDATE, path, error);
-    }
+  async updateBoard(_projectId: string, boardId: string, updates: Partial<Board>): Promise<void> {
+    await api.put(`/Boards/${boardId}`, {
+      name: updates.name,
+      description: updates.description,
+      displayOrder: updates.order,
+    });
   }
 
-  async deleteBoard(projectId: string, boardId: string): Promise<void> {
-    const path = `projects/${projectId}/boards/${boardId}`;
-    try {
-      await deleteDoc(doc(db, 'projects', projectId, 'boards', boardId));
-    } catch (error) {
-      this.handleAuthError(OperationType.DELETE, path, error);
-    }
+  async deleteBoard(_projectId: string, boardId: string): Promise<void> {
+    await api.delete(`/Boards/${boardId}`);
   }
 
-  // --- TAREAS ---
+  // ============================ COLUMNAS ============================
 
-  async createTask(projectId: string, taskData: Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt' | 'reporterId'>): Promise<string> {
-    if (!auth.currentUser) throw new Error("No autenticado");
-    
-    const tasksRef = collection(db, 'projects', projectId, 'tasks');
-    const taskDoc = doc(tasksRef);
-    const path = `projects/${projectId}/tasks/${taskDoc.id}`;
+  async createColumn(
+    boardId: string,
+    column: { name: string; displayOrder?: number; wipLimit?: number | null },
+  ): Promise<string> {
+    const created = await api.post<ColumnApi>('/Columns', {
+      name: column.name,
+      boardId,
+      displayOrder: column.displayOrder ?? 0,
+      wipLimit: column.wipLimit ?? null,
+    });
+    return created.id;
+  }
 
-    try {
-      await setDoc(taskDoc, {
-        ...taskData,
-        id: taskDoc.id,
-        projectId,
-        reporterId: auth.currentUser.uid,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
+  async updateColumn(
+    columnId: string,
+    updates: { name?: string; displayOrder?: number; wipLimit?: number | null },
+  ): Promise<void> {
+    await api.put(`/Columns/${columnId}`, updates);
+  }
 
-      if (taskData.assigneeIds && taskData.assigneeIds.length > 0) {
-        for (const assigneeId of taskData.assigneeIds) {
-          if (assigneeId !== auth.currentUser.uid) {
-            await this.createNotification({
-              userId: assigneeId,
-              type: 'ASSIGNED',
-              taskId: taskDoc.id,
-              projectId,
-              title: 'Nueva Tarea Asignada',
-              message: `Se te ha asignado la tarea: ${taskData.title}`,
-              read: false
-            });
-          }
-        }
-      }
+  async deleteColumn(columnId: string): Promise<void> {
+    await api.delete(`/Columns/${columnId}`);
+  }
 
-      await this.auditProjectAction(projectId, 'CREATE', 'TASK', taskDoc.id, `Created task: ${taskData.title}`);
+  async reorderColumns(columnsInOrder: { id: string }[]): Promise<void> {
+    await Promise.all(
+      columnsInOrder.map((c, idx) => this.updateColumn(c.id, { displayOrder: idx })),
+    );
+  }
 
-      return taskDoc.id;
-    } catch (error) {
-      this.handleAuthError(OperationType.CREATE, path, error);
-      return '';
-    }
+  // ============================ TAREAS ============================
+
+  async createTask(
+    projectId: string,
+    taskData: Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
+  ): Promise<string> {
+    this.requireUser();
+
+    const [priorities, types] = await Promise.all([
+      this.catalog.getTaskPriorities(),
+      this.catalog.getTaskTypes(),
+    ]);
+
+    const payload: CreateTaskRequest = {
+      title: taskData.title,
+      description: taskData.description ?? '',
+      typeId: await this.catalog.findId(types, taskData.type || 'TASK', 1),
+      priorityId: await this.catalog.findId(priorities, taskData.priority || 'MEDIA', 2),
+      columnId: taskData.status, // status del frontend almacena el columnId
+      assignedToUserId: taskData.assigneeIds?.[0],
+      dueDate: taskData.dueDate ?? null,
+      estimatedHours: taskData.estimatedHours ?? 0,
+      tags: (taskData.labels ?? []).map((l) => l.name),
+    };
+
+    const created = await api.post<TaskApi>('/Tasks', payload);
+    void projectId; // projectId queda implícito vía column→board→project
+    return created.id;
   }
 
   async getTasks(projectId: string, boardId?: string): Promise<Task[]> {
-    const path = `projects/${projectId}/tasks`;
-    try {
-      let q = query(collection(db, 'projects', projectId, 'tasks'));
-      if (boardId) {
-        q = query(q, where('boardId', '==', boardId));
-      }
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(doc => doc.data() as Task);
-    } catch (error) {
-      this.handleAuthError(OperationType.LIST, path, error);
-      return [];
-    }
+    const tasks = await api.get<TaskApi[]>(`/Tasks/project/${projectId}`);
+    return (tasks ?? []).map((t) => mapTask(t, projectId, boardId ?? ''));
   }
 
-  async updateTaskStatus(projectId: string, taskId: string, status: string): Promise<void> {
-    const path = `projects/${projectId}/tasks/${taskId}`;
-    try {
-      const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-      
-      const prevTaskSnap = await getDoc(taskRef);
-      const prevTask = prevTaskSnap.data() as Task;
-
-      await updateDoc(taskRef, {
-        status,
-        updatedAt: serverTimestamp()
-      });
-
-      if (prevTask && prevTask.assigneeIds && prevTask.assigneeIds.length > 0) {
-        for (const assigneeId of prevTask.assigneeIds) {
-          if (assigneeId !== auth.currentUser?.uid) {
-            await this.createNotification({
-              userId: assigneeId,
-              type: 'STATUS_CHANGE',
-              taskId,
-              projectId,
-              title: 'Estado de Tarea Actualizado',
-              message: `La tarea "${prevTask.title}" cambió su estado.`,
-              read: false
-            });
-          }
-        }
-      }
-    } catch (error) {
-      this.handleAuthError(OperationType.UPDATE, path, error);
-    }
+  async updateTaskStatus(_projectId: string, taskId: string, status: string): Promise<void> {
+    // status del frontend = columnId; pero el endpoint UpdateTask espera statusId del catálogo.
+    // Heurística: si parece un GUID, asumimos que es un columnId y haremos un PATCH específico vía updateTask.
+    // El backend espera columnas; el campo Column se actualiza al mover task entre columnas (no expuesto aún).
+    // Por ahora, actualizamos statusId si los catálogos coinciden por código.
+    const statuses = await this.catalog.getTaskStatuses();
+    const statusId = await this.catalog.findId(statuses, status, 1);
+    const payload: UpdateTaskRequest = { statusId };
+    await api.put(`/Tasks/${taskId}`, payload);
   }
 
-  async updateTask(projectId: string, taskId: string, updates: Partial<Task>): Promise<void> {
-    const path = `projects/${projectId}/tasks/${taskId}`;
-    try {
-      const taskRef = doc(db, 'projects', projectId, 'tasks', taskId);
-      
-      const prevTaskSnap = await getDoc(taskRef);
-      const prevTask = prevTaskSnap.data() as Task;
+  async updateTask(_projectId: string, taskId: string, updates: Partial<Task>): Promise<void> {
+    const payload: UpdateTaskRequest = {
+      title: updates.title,
+      description: updates.description,
+      dueDate: updates.dueDate ?? undefined,
+      estimatedHours: updates.estimatedHours ?? undefined,
+      actualHours: updates.loggedHours ?? undefined,
+      assignedUserIds: updates.assigneeIds,
+      tags: updates.labels?.map((l) => l.name),
+    };
 
-      await updateDoc(taskRef, {
-        ...updates,
-        updatedAt: serverTimestamp()
-      });
-
-      if (prevTask) {
-        if (updates.status && updates.status !== prevTask.status) {
-          const assigneesToNotify = prevTask.assigneeIds || [];
-          for (const assigneeId of assigneesToNotify) {
-            if (assigneeId !== auth.currentUser?.uid) {
-               await this.createNotification({
-                 userId: assigneeId,
-                 type: 'STATUS_CHANGE',
-                 taskId,
-                 projectId,
-                 title: 'Estado de Tarea Actualizado',
-                 message: `La tarea "${updates.title || prevTask.title}" cambió su estado.`,
-                 read: false
-               });
-            }
-          }
-        }
-
-        // Did we assign to new people?
-        if (updates.assigneeIds) {
-          const newAssignees = updates.assigneeIds.filter(id => !prevTask.assigneeIds?.includes(id));
-          for (const assigneeId of newAssignees) {
-            if (assigneeId !== auth.currentUser?.uid) {
-               await this.createNotification({
-                 userId: assigneeId,
-                 type: 'ASSIGNED',
-                 taskId,
-                 projectId,
-                 title: 'Nueva Tarea Asignada',
-                 message: `Se te ha asignado la tarea: ${updates.title || prevTask.title}`,
-                 read: false
-               });
-            }
-          }
-        }
-
-        // Newly added comments
-        if (updates.comments && prevTask.comments && updates.comments.length > prevTask.comments.length) {
-          const assigneesToNotify = updates.assigneeIds || prevTask.assigneeIds || [];
-          for (const assigneeId of assigneesToNotify) {
-            if (assigneeId !== auth.currentUser?.uid) {
-               await this.createNotification({
-                 userId: assigneeId,
-                 type: 'COMMENT',
-                 taskId,
-                 projectId,
-                 title: 'Nuevo Comentario',
-                 message: `Se ha comentado en la tarea: ${updates.title || prevTask.title}`,
-                 read: false
-               });
-            }
-          }
-        }
-      }
-
-      await this.auditProjectAction(projectId, 'UPDATE', 'TASK', taskId, `Updated task: ${updates.title || prevTask?.title || taskId}`);
-    } catch (error) {
-      this.handleAuthError(OperationType.UPDATE, path, error);
+    if (updates.priority) {
+      const priorities = await this.catalog.getTaskPriorities();
+      payload.priorityId = await this.catalog.findId(priorities, updates.priority, 2);
     }
+    if (updates.type) {
+      const types = await this.catalog.getTaskTypes();
+      payload.typeId = await this.catalog.findId(types, updates.type, 1);
+    }
+    if (updates.status) {
+      const statuses = await this.catalog.getTaskStatuses();
+      payload.statusId = await this.catalog.findId(statuses, updates.status, 1);
+    }
+
+    await api.put(`/Tasks/${taskId}`, payload);
   }
 
-  async deleteTask(projectId: string, taskId: string): Promise<void> {
-    const path = `projects/${projectId}/tasks/${taskId}`;
-    try {
-      await deleteDoc(doc(db, 'projects', projectId, 'tasks', taskId));
-      await this.auditProjectAction(projectId, 'DELETE', 'TASK', taskId, 'Deleted task');
-    } catch (error) {
-      this.handleAuthError(OperationType.DELETE, path, error);
-    }
+  async deleteTask(_projectId: string, taskId: string): Promise<void> {
+    await api.delete(`/Tasks/${taskId}`);
   }
 
+  /** Stub — la auditoría la maneja internamente el backend. */
   async auditProjectAction(
-    projectId: string,
-    action: 'CREATE' | 'UPDATE' | 'DELETE',
-    entityType: 'BOARD' | 'TASK' | 'PROJECT',
-    entityId: string,
-    details?: string
+    _projectId: string,
+    _action: 'CREATE' | 'UPDATE' | 'DELETE',
+    _entityType: 'BOARD' | 'TASK' | 'PROJECT',
+    _entityId: string,
+    _details?: string,
   ): Promise<void> {
-    if (!auth.currentUser) return;
-    try {
-      const logRef = doc(collection(db, 'projects', projectId, 'audit_logs'));
-      await setDoc(logRef, {
-        id: logRef.id,
-        projectId,
-        action,
-        entityType,
-        entityId,
-        userId: auth.currentUser.uid,
-        details: details || '',
-        createdAt: serverTimestamp()
-      });
-    } catch (e) {
-      console.error('Error in audit log', e);
-    }
+    // No-op: el backend registra los AuditLog automáticamente desde sus services.
   }
 
-  // --- NOTIFICACIONES ---
+  // ============================ NOTIFICACIONES ============================
 
-  async createNotification(notification: Omit<AppNotification, 'id' | 'createdAt'>): Promise<void> {
-    if (!auth.currentUser) return;
-    try {
-      // Fetch user profile to check preferences
-      const userRef = doc(db, 'users', notification.userId);
-      const userSnap = await getDoc(userRef);
-      if (userSnap.exists()) {
-        const userData = userSnap.data();
-        const prefs = userData.notificationPreferences || {};
-        
-        // Defaults to true if not set
-        const inAppPref = prefs[notification.type]?.inApp ?? true;
-        const emailPref = prefs[notification.type]?.email ?? true;
-        
-        // Let's pretend we send an email here if emailPref is true
-        if (emailPref) {
-           console.log(`Sending email to ${userData.email} for ${notification.type}`);
-        }
-        
-        // If in-app notification is disabled, do not create doc
-        if (!inAppPref) {
-          return;
-        }
-      }
-      
-      const docRef = doc(collection(db, 'notifications'));
-      await setDoc(docRef, {
-        ...notification,
-        id: docRef.id,
-        createdAt: serverTimestamp()
-      });
-    } catch (e) {
-      console.error('Error creating notification', e);
-    }
+  async createNotification(_notification: unknown): Promise<void> {
+    // No-op: las notificaciones se generan en el servidor cuando hay cambios de tarea.
+    console.warn('[databaseService] createNotification es manejado por el backend.');
+  }
+
+  async getMyNotifications(): Promise<NotificationApi[]> {
+    return api.get<NotificationApi[]>('/Users/my-notifications', { unwrap: false }).catch(() => []);
   }
 
   async markNotificationRead(notificationId: string): Promise<void> {
-    try {
-      await updateDoc(doc(db, 'notifications', notificationId), {
-        read: true
-      });
-    } catch (e) {
-      console.error('Error marking notification read', e);
-    }
+    await api.post(`/Users/notifications/${notificationId}/read`, undefined, { unwrap: false });
   }
 
-  // --- SAVED FILTERS ---
+  // ============================ SAVED FILTERS ============================
+
   async saveFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'userId'>): Promise<void> {
-    if (!auth.currentUser) return;
-    try {
-      const ref = doc(collection(db, 'users', auth.currentUser.uid, 'saved_filters'));
-      await setDoc(ref, {
-        id: ref.id,
-        userId: auth.currentUser.uid,
-        projectId: filter.projectId,
-        name: filter.name,
-        criteria: filter.criteria,
-        createdAt: serverTimestamp()
-      });
-    } catch (e) {
-      this.handleAuthError(OperationType.CREATE, 'users/saved_filters', e);
-    }
+    await api.post('/SavedFilters', {
+      projectId: filter.projectId,
+      name: filter.name,
+      criteria: typeof filter.criteria === 'string' ? filter.criteria : JSON.stringify(filter.criteria),
+    });
   }
 
   async getSavedFilters(projectId: string): Promise<SavedFilter[]> {
-    if (!auth.currentUser) return [];
-    try {
-      const q = query(
-        collection(db, 'users', auth.currentUser.uid, 'saved_filters'),
-        where('projectId', '==', projectId)
-      );
-      const snapshot = await getDocs(q);
-      return snapshot.docs.map(d => ({ ...d.data(), id: d.id } as SavedFilter));
-    } catch (e) {
-      this.handleAuthError(OperationType.LIST, 'users/saved_filters', e);
-      return [];
-    }
+    const user = this.requireUser();
+    const filters = await api
+      .get<SavedFilterApi[]>(`/SavedFilters/user/${user.uid}`, { unwrap: false })
+      .catch(() => [] as SavedFilterApi[]);
+    return (filters ?? [])
+      .filter((f) => f.projectId === projectId)
+      .map((f) => ({
+        id: f.id,
+        projectId: f.projectId,
+        name: f.name,
+        userId: f.userId,
+        criteria: (() => {
+          try {
+            return JSON.parse(f.criteria);
+          } catch {
+            return f.criteria;
+          }
+        })(),
+        createdAt: f.createdAt,
+      }));
   }
 
   async deleteSavedFilter(filterId: string): Promise<void> {
-    if (!auth.currentUser) return;
-    try {
-      await deleteDoc(doc(db, 'users', auth.currentUser.uid, 'saved_filters', filterId));
-    } catch (e) {
-      this.handleAuthError(OperationType.DELETE, 'users/saved_filters', e);
-    }
+    await api.delete(`/SavedFilters/${filterId}`);
   }
 }
 

@@ -7,8 +7,8 @@ using TaskPriority = TaskFlow_API.Models.TaskPriority;
 namespace TaskFlow_API.Patterns.Builder;
 
 /// <summary>
-/// Patrón Builder: Permite la construcción paso a paso de una tarea
-/// con configuración detallada y flexible
+/// Patrï¿½n Builder: Permite la construcciï¿½n paso a paso de una tarea
+/// con configuraciï¿½n detallada y flexible
 /// </summary>
 public class TaskBuilder
 {
@@ -162,7 +162,10 @@ public class ProjectBuilder
     {
         _project = new Project
         {
-            OwnerId = ownerId
+            OwnerId = ownerId,
+            // Default: Active (Id=1 en ProjectStatuses). Sin esto el campo se
+            // queda en 0 y rompe la FK al guardar.
+            StatusId = 1
         };
     }
 
@@ -199,6 +202,17 @@ public class ProjectBuilder
     public ProjectBuilder WithStatus(ProjectStatus status)
     {
         _project.Status = status;
+        _project.StatusId = status.Id;
+        return this;
+    }
+
+    /// <summary>
+    /// Asigna el estado por id del catÃ¡logo (1=Active, 2=Completed, ...).
+    /// Valores <= 0 se ignoran y se mantiene el default (Active).
+    /// </summary>
+    public ProjectBuilder WithStatusId(int statusId)
+    {
+        if (statusId > 0) _project.StatusId = statusId;
         return this;
     }
 
@@ -228,7 +242,8 @@ public class ProjectBuilder
     {
         _project = new Project
         {
-            OwnerId = ownerId
+            OwnerId = ownerId,
+            StatusId = 1
         };
     }
 }

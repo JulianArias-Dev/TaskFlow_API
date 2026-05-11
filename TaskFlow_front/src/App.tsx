@@ -1,24 +1,22 @@
 import { useEffect, useState } from 'react';
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { User } from 'firebase/auth';
 import { authService } from './services/authService';
+import type { AuthUser } from './lib/firebase';
 import { AuthLayout } from './features/auth/AuthLayout';
 import { LoginPage } from './features/auth/pages/LoginPage';
 import { RegisterPage } from './features/auth/pages/RegisterPage';
 import { ForgotPasswordPage } from './features/auth/pages/ForgotPasswordPage';
-import { Button } from './components/ui/Button';
-import { Layout } from 'lucide-react';
 
 import { ProfileDashboard } from './features/profile/ProfileDashboard';
 
-function ProtectedRoute({ user, children }: { user: User | null, children: React.ReactNode }) {
+function ProtectedRoute({ user, children }: { user: AuthUser | null; children: React.ReactNode }) {
   if (!user) return <Navigate to="/login" replace />;
-  return children;
+  return <>{children}</>;
 }
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,7 +29,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-800 dark:bg-gray-900">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="w-10 h-10 border-4 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );

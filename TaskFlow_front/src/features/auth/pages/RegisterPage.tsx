@@ -28,10 +28,13 @@ export function RegisterPage() {
       navigate('/');
     } catch (err: any) {
       console.error(err);
-      if (err.code === 'auth/email-already-in-use') {
+      const message: string = err?.message ?? '';
+      if (err?.status === 409 || /ya existe|already/i.test(message)) {
         setError('Este correo ya está registrado.');
+      } else if (err?.status === 400 && err?.errors?.length) {
+        setError(err.errors[0]);
       } else {
-        setError('Ocurrió un error al registrar. Inténtalo de nuevo.');
+        setError(message || 'Ocurrió un error al registrar. Inténtalo de nuevo.');
       }
     } finally {
       setIsLoading(false);

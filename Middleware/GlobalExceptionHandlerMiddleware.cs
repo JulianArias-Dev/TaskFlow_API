@@ -1,22 +1,29 @@
 using System.Net;
-using System.Text.Json;
+using Microsoft.EntityFrameworkCore;
 using TaskFlow_API.DTOs;
 
 namespace TaskFlow_API.Middleware;
 
 /// <summary>
-/// Middleware global para manejo de excepciones no controladas
-/// Convierte excepciones en respuestas JSON est·ndar
+/// Middleware global para manejo de excepciones no controladas.
+/// Convierte excepciones en respuestas JSON est√°ndar (ResponseDto) y, cuando
+/// el entorno no es Production, propaga el mensaje del InnerException m√°s
+/// profundo ‚Äî clave para depurar fallos de EF Core como FK constraints.
 /// </summary>
 public class GlobalExceptionHandlerMiddleware
 {
     private readonly RequestDelegate _next;
     private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
+    private readonly IWebHostEnvironment _env;
 
-    public GlobalExceptionHandlerMiddleware(RequestDelegate next, ILogger<GlobalExceptionHandlerMiddleware> logger)
+    public GlobalExceptionHandlerMiddleware(
+        RequestDelegate next,
+        ILogger<GlobalExceptionHandlerMiddleware> logger,
+        IWebHostEnvironment env)
     {
         _next = next;
         _logger = logger;
+        _env = env;
     }
 
     public async System.Threading.Tasks.Task InvokeAsync(HttpContext context)
@@ -31,56 +38,84 @@ public class GlobalExceptionHandlerMiddleware
         }
     }
 
-    private static System.Threading.Tasks.Task HandleExceptionAsync(HttpContext context, Exception exception)
+    private System.Threading.Tasks.Task HandleExceptionAsync(HttpContext context, Exception exception)
     {
         context.Response.ContentType = "application/json";
 
-        var response = new ResponseDto();
-        var logger = context.RequestServices.GetRequiredService<ILogger<GlobalExceptionHandlerMiddleware>>();
+        ResponseDto response;
 
         switch (exception)
         {
             case KeyNotFoundException keyNotFound:
                 context.Response.StatusCode = (int)HttpStatusCode.NotFound;
                 response = new ResponseDto(false, keyNotFound.Message, new List<string> { keyNotFound.Message }, 404);
-                logger.LogWarning("Recurso no encontrado: {Message}", keyNotFound.Message);
+                _logger.LogWarning("Recurso no encontrado: {Message}", keyNotFound.Message);
                 break;
 
             case InvalidOperationException invalidOp:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response = new ResponseDto(false, "OperaciÛn inv·lida", new List<string> { invalidOp.Message }, 400);
-                logger.LogWarning("OperaciÛn inv·lida: {Message}", invalidOp.Message);
+                response = new ResponseDto(false, "Operaci√≥n inv√°lida", new List<string> { invalidOp.Message }, 400);
+                _logger.LogWarning("Operaci√≥n inv√°lida: {Message}", invalidOp.Message);
                 break;
 
             case ArgumentException argEx:
                 context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
-                response = new ResponseDto(false, "Argumento inv·lido", new List<string> { argEx.Message }, 400);
-                logger.LogWarning("Argumento inv·lido: {Message}", argEx.Message);
+                response = new ResponseDto(false, "Argumento inv√°lido", new List<string> { argEx.Message }, 400);
+                _logger.LogWarning("Argumento inv√°lido: {Message}", argEx.Message);
                 break;
 
             case UnauthorizedAccessException unauthorized:
                 context.Response.StatusCode = (int)HttpStatusCode.Unauthorized;
                 response = new ResponseDto(false, "No autorizado", new List<string> { unauthorized.Message }, 401);
-                logger.LogWarning("Acceso no autorizado: {Message}", unauthorized.Message);
+                _logger.LogWarning("Acceso no autorizado: {Message}", unauthorized.Message);
                 break;
+
+            case DbUpdateException dbUpdate:
+                {
+                    var detail = GetDeepestMessage(dbUpdate);
+                    context.Response.StatusCode = (int)HttpStatusCode.BadRequest;
+                    response = new ResponseDto(
+                        false,
+                        "Error al persistir cambios en la base de datos",
+                        new List<string> { detail },
+                        400);
+                    _logger.LogError(dbUpdate, "DbUpdateException: {Detail}", detail);
+                    break;
+                }
 
             default:
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                var fallback = _env.IsProduction()
+                    ? "Ha ocurrido un error inesperado. Por favor, intente m√°s tarde."
+                    : GetDeepestMessage(exception);
                 response = new ResponseDto(
                     false,
                     "Error interno del servidor",
-                    new List<string> { "Ha ocurrido un error inesperado. Por favor, intente m·s tarde." },
+                    new List<string> { fallback },
                     500);
-                logger.LogError(exception, "Error no controlado: {Message}", exception.Message);
+                _logger.LogError(exception, "Error no controlado: {Message}", exception.Message);
                 break;
         }
 
         return context.Response.WriteAsJsonAsync(response);
     }
+
+    /// <summary>
+    /// Recorre la cadena de InnerException y devuelve el mensaje m√°s interno ‚Äî
+    /// que es donde EF Core / SqlClient suelen poner la causa real (p. ej.
+    /// "FOREIGN KEY constraint conflict with table 'AppRoles'").
+    /// </summary>
+    private static string GetDeepestMessage(Exception ex)
+    {
+        var current = ex;
+        while (current.InnerException != null)
+            current = current.InnerException;
+        return current.Message;
+    }
 }
 
 /// <summary>
-/// ExtensiÛn para registrar el middleware de manejo de excepciones
+/// Extensi√≥n para registrar el middleware de manejo de excepciones.
 /// </summary>
 public static class ExceptionHandlerMiddlewareExtensions
 {

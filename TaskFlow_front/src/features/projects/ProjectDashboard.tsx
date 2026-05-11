@@ -73,13 +73,12 @@ export function ProjectDashboard({ project, tasks, columns }: ProjectDashboardPr
 
     tasks.forEach(task => {
       if (doneColIds.includes(task.status)) {
-        // Try to find when it was completed from history
-        const completionEvent = task.history?.filter(h => h.type === 'STATUS_CHANGE' && doneColIds.includes(h.to)).sort((a,b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())[0];
-        const completionDate = completionEvent ? new Date(completionEvent.timestamp) : (task.updatedAt?.toDate ? task.updatedAt.toDate() : new Date(task.updatedAt));
-        
+        // Aproximamos la fecha de completado con `updatedAt` (la API audita
+        // los cambios en su capa; aquí basta para gráfico semanal).
+        const completionDate = new Date(task.updatedAt);
         const diffDays = Math.floor((today.getTime() - completionDate.getTime()) / (1000 * 60 * 60 * 24));
         const weekIndex = Math.floor(diffDays / 7);
-        
+
         if (weekIndex >= 0 && weekIndex <= 3) {
           const label = `Sem ${weekIndex === 0 ? 'Actual' : '-' + weekIndex}`;
           weeksData[label] = (weeksData[label] || 0) + 1;

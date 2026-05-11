@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Clock, Box, Tag, Paperclip, Users, UserCircle } from 'lucide-react';
+import { ArrowLeft, Settings, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Clock, Box, Tag, Users, UserCircle } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
 import { Project, Board, BoardColumn, ProjectStatus, Task } from '../../types/models';
 import { Button } from '../../components/ui/Button';
 import { dbService } from '../../services/databaseService';
-import { auth, db } from '../../lib/firebase';
-import { doc, onSnapshot, setDoc, serverTimestamp, collection, query, where, getDocs } from 'firebase/firestore';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { TaskModal } from './TaskModal';
 import { ProjectDashboard } from './ProjectDashboard';
@@ -45,7 +43,7 @@ export function ProjectDetailView({
     }
   }, [initialTab]);
   
-  const [undoState, setUndoState] = useState<{task: Task | null, timeoutId?: NodeJS.Timeout}>({ task: null });
+  const [undoState, setUndoState] = useState<{ task: Task | null; timeoutId?: ReturnType<typeof setTimeout> }>({ task: null });
   
   const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; task?: Task | null; columnId: string }>({
     isOpen: false, columnId: ''
@@ -56,27 +54,9 @@ export function ProjectDetailView({
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
 
   useEffect(() => {
-    if (!project.id || !auth.currentUser) return;
-    const presenceRef = doc(db, 'projects', project.id, 'presence', auth.currentUser.uid);
-    setDoc(presenceRef, {
-        userId: auth.currentUser.uid,
-        email: auth.currentUser.email,
-        lastActive: serverTimestamp()
-    }, { merge: true }).catch(() => {});
-
-    const unsubPresence = onSnapshot(collection(db, 'projects', project.id, 'presence'), (snapshot) => {
-      const active = snapshot.docs.map(d => d.data()).filter((p: any) => p.userId !== auth.currentUser?.uid);
-      setActiveUsers(active);
-    });
-    
-    const pingInterval = setInterval(() => {
-        setDoc(presenceRef, { lastActive: serverTimestamp() }, { merge: true }).catch(()=>{});
-    }, 30000);
-
-    return () => {
-      clearInterval(pingInterval);
-      unsubPresence();
-    };
+    // Feature de presencia en tiempo real pendiente de migrar al backend
+    // (antes vivía en Firestore). Por ahora simplemente vaciamos la lista.
+    setActiveUsers([]);
   }, [project.id]);
 
   const [filterCriteria, setFilterCriteria] = useState<TaskFilterCriteria>({
@@ -91,38 +71,6 @@ export function ProjectDetailView({
 
   const isArchived = project.status === ProjectStatus.ARCHIVADO;
 
-  const checkOverdueTasks = async (loadedTasks: Task[], boardColumns: BoardColumn[]) => {
-    if (!auth.currentUser) return;
-    
-    const now = new Date().setHours(0,0,0,0);
-    
-    for (const task of loadedTasks) {
-      if (!task.dueDate || task.overdueNotified) continue;
-      
-      const isAssignedToMe = task.assigneeIds?.includes(auth.currentUser.uid);
-      if (!isAssignedToMe) continue;
-      
-      const col = boardColumns.find(c => c.id === task.status);
-      const isCompleted = col && (col.name.toLowerCase().includes('hecho') || col.name.toLowerCase().includes('completad') || col.name.toLowerCase().includes('done'));
-      
-      if (!isCompleted && new Date(task.dueDate).getTime() < now) {
-        await dbService.createNotification({
-          userId: auth.currentUser.uid,
-          type: 'DUE_OVERDUE',
-          taskId: task.id,
-          projectId: project.id,
-          title: 'Tarea Vencida',
-          message: `La tarea "${task.title}" ha vencido.`,
-          read: false
-        });
-        
-        await dbService.updateTask(project.id, task.id, {
-          overdueNotified: true
-        });
-      }
-    }
-  };
-
   const loadBoard = async () => {
     setLoading(true);
     const boards = await dbService.getBoards(project.id);
@@ -130,7 +78,8 @@ export function ProjectDetailView({
       setBoard(boards[0]);
       const boardTasks = await dbService.getTasks(project.id, boards[0].id);
       setTasks(boardTasks);
-      await checkOverdueTasks(boardTasks, boards[0].columns);
+      // El backend genera notificaciones de vencimiento (overdue) en su capa
+      // de servicio; ya no es responsabilidad del cliente disparar la auditoría.
     }
     
     try {
@@ -164,9 +113,11 @@ export function ProjectDetailView({
 
   const confirmDeleteColumn = async () => {
     if (!board || !confirmDeleteColId) return;
-    
-    const updatedCols = board.columns.filter(c => c.id !== confirmDeleteColId);
-    await dbService.updateBoard(project.id, board.id, { columns: updatedCols });
+    try {
+      await dbService.deleteColumn(confirmDeleteColId);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'No se pudo eliminar la columna');
+    }
     setConfirmDeleteColId(null);
     await loadBoard();
   };
@@ -174,22 +125,18 @@ export function ProjectDetailView({
   const saveColumn = async (name: string, wipLimitRaw: string) => {
     if (!board) return;
     const wipLimit = wipLimitRaw && !isNaN(parseInt(wipLimitRaw)) ? parseInt(wipLimitRaw) : null;
-    
+
     if (columnModalState.isEdit && columnModalState.col) {
       const updatedName = name.trim() || columnModalState.col.name;
-      const updatedCols = board.columns.map(c => c.id === columnModalState.col?.id ? { ...c, name: updatedName, wipLimit } : c);
-      await dbService.updateBoard(project.id, board.id, { columns: updatedCols });
+      await dbService.updateColumn(columnModalState.col.id, { name: updatedName, wipLimit });
     } else {
-      const newCol: BoardColumn = {
-        id: `col_${Date.now()}`,
+      await dbService.createColumn(board.id, {
         name: name.trim() || 'Nueva Columna',
-        wipLimit
-      };
-      await dbService.updateBoard(project.id, board.id, {
-        columns: [...board.columns, newCol]
+        displayOrder: board.columns.length,
+        wipLimit,
       });
     }
-    
+
     setColumnModalState({ isOpen: false, isEdit: false });
     await loadBoard();
   };
@@ -199,11 +146,9 @@ export function ProjectDetailView({
     const newCols = [...board.columns];
     const targetIndex = direction === 'left' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= newCols.length) return;
-    
-    // swap
+
     [newCols[index], newCols[targetIndex]] = [newCols[targetIndex], newCols[index]];
-    
-    await dbService.updateBoard(project.id, board.id, { columns: newCols });
+    await dbService.reorderColumns(newCols.map((c) => ({ id: c.id })));
     await loadBoard();
   };
 
@@ -283,22 +228,9 @@ export function ProjectDetailView({
 
       // Optimistic update
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
-      
-      let updatedHistory = task.history || [];
-      updatedHistory = [...updatedHistory, {
-        id: Date.now().toString(),
-        type: 'STATUS_CHANGE',
-        from: oldStatus,
-        to: newStatus,
-        userId: auth.currentUser!.uid,
-        timestamp: new Date().toISOString()
-      }];
 
       const proxy = new TaskManagerProxy();
-      await proxy.updateTask(project.id, taskId, {
-        status: newStatus,
-        history: updatedHistory
-      });
+      await proxy.updateTask(project.id, taskId, { status: newStatus });
     }
   };
 
@@ -378,9 +310,6 @@ export function ProjectDetailView({
       <div className="p-4 md:p-6 pb-0 border-b border-gray-200 dark:border-gray-700 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm sticky top-0 z-20">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <span className="text-xs font-mono font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider">
-              {project.key}
-            </span>
             <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">{project.name}</h2>
           </div>
           
@@ -527,26 +456,9 @@ export function ProjectDetailView({
                                   )}
                                 </div>
                                 
-                                {(task.assigneeIds && task.assigneeIds.length > 0 || task.history && task.history.length > 0 || task.subtasks && task.subtasks.length > 0 || task.comments && task.comments.length > 0 || task.attachments && task.attachments.length > 0) && (
+                                {task.assigneeIds && task.assigneeIds.length > 0 && (
                                   <div className="flex flex-wrap border-t border-gray-100 dark:border-gray-700 pt-2 mt-1 justify-between gap-2 items-center text-xs text-gray-400">
-                                    <div className="flex gap-2 items-center">
-                                      {task.assigneeIds && task.assigneeIds.length > 0 && (
-                                        <span>{task.assigneeIds.length} responsable{task.assigneeIds.length !== 1 ? 's' : ''}</span>
-                                      )}
-                                      {task.subtasks && task.subtasks.length > 0 && (
-                                        <span className="bg-gray-100 dark:bg-gray-700 px-1.5 py-0.5 rounded text-gray-600 dark:text-gray-300">
-                                           {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length} subtareas
-                                        </span>
-                                      )}
-                                    </div>
-                                    <div className="flex gap-1.5 items-center">
-                                      {task.attachments && task.attachments.length > 0 && (
-                                        <span className="flex items-center gap-0.5"><Paperclip className="w-3 h-3" /> {task.attachments.length}</span>
-                                      )}
-                                      {task.comments && task.comments.length > 0 && (
-                                        <span>{task.comments.length} comentario{task.comments.length !== 1 ? 's' : ''}</span>
-                                      )}
-                                    </div>
+                                    <span>{task.assigneeIds.length} responsable{task.assigneeIds.length !== 1 ? 's' : ''}</span>
                                   </div>
                                 )}
                               </div>

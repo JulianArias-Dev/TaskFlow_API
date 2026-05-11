@@ -19,7 +19,6 @@ export function ProjectsView({ userRole, onSelectProject }: { userRole?: string,
   // Form
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [key, setKey] = useState('');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [saving, setSaving] = useState(false);
@@ -41,17 +40,10 @@ export function ProjectsView({ userRole, onSelectProject }: { userRole?: string,
     setSaving(true);
     try {
       const facade = new ProjectManagementFacade();
-      await facade.scaffoldNewProject(
-        name,
-        key.toUpperCase(),
-        description,
-        startDate,
-        endDate
-      );
+      await facade.scaffoldNewProject(name, description, startDate, endDate);
       setShowCreate(false);
       setName('');
       setDescription('');
-      setKey('');
       setStartDate('');
       setEndDate('');
       await loadProjects();
@@ -84,28 +76,16 @@ export function ProjectsView({ userRole, onSelectProject }: { userRole?: string,
           >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50 mb-4">Crear Proyecto</h3>
             <form onSubmit={handleCreate} className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input 
-                  label="Nombre del proyecto" 
-                  value={name} 
-                  onChange={e => {
-                    setName(e.target.value);
-                    if (!key) setKey(e.target.value.substring(0, 3).toUpperCase());
-                  }} 
-                  required 
-                />
-                <Input 
-                  label="Clave (Ej. PROJ)" 
-                  value={key} 
-                  onChange={e => setKey(e.target.value.toUpperCase())} 
-                  maxLength={10}
-                  required 
-                />
-              </div>
-              <Input 
-                label="Descripción" 
-                value={description} 
-                onChange={e => setDescription(e.target.value)} 
+              <Input
+                label="Nombre del proyecto"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+              <Input
+                label="Descripción"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
               />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input 
@@ -155,9 +135,6 @@ export function ProjectsView({ userRole, onSelectProject }: { userRole?: string,
                   <div className="flex justify-between items-start mb-3">
                     <div>
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xs font-mono font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded uppercase tracking-wider">
-                          {project.key}
-                        </span>
                         <h3 className="text-lg font-bold text-gray-900 dark:text-gray-50 group-hover:text-blue-600 transition-colors">{project.name}</h3>
                       </div>
                       <div className="flex items-center gap-2 mb-2">

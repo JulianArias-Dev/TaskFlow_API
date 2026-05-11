@@ -90,8 +90,12 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Registration error: {Message}", ex.Message);
-            return BadRequest(ResponseDto.ErrorResponse("Registration failed", new List<string> { ex.Message }));
+            // Devolver el mensaje más interno — donde EF Core / SqlClient ponen
+            // la causa real (FK violadas, columnas null, etc.).
+            var deepest = ex;
+            while (deepest.InnerException != null) deepest = deepest.InnerException;
+            _logger.LogError(ex, "Registration error: {Message}", deepest.Message);
+            return BadRequest(ResponseDto.ErrorResponse("Registration failed", new List<string> { deepest.Message }));
         }
     }
 

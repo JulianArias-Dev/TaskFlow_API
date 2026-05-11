@@ -160,6 +160,35 @@ public class UsersController : ControllerBase
     }
 
     /// <summary>
+    /// Actualiza el perfil de un usuario aceptando los datos en el body.
+    /// Recomendado sobre el PUT clásico cuando se envía un AvatarUrl largo
+    /// (p. ej. data URLs base64 generadas en el cliente).
+    /// </summary>
+    [HttpPut("{id}/profile")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<User>> UpdateProfile(Guid id, [FromBody] UpdateUserDto dto)
+    {
+        if (dto == null)
+            return BadRequest(new { message = "Payload requerido" });
+
+        if (string.IsNullOrWhiteSpace(dto.Name))
+            return BadRequest(new { message = "El nombre es requerido" });
+
+        try
+        {
+            var updated = await _userService.UpdateUserAsync(id, dto.Name!, dto.AvatarUrl);
+            return Ok(updated);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            _logger.LogWarning("User with ID {UserId} not found for profile update", id);
+            return NotFound(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Elimina un usuario
     /// </summary>
     /// <param name="id">ID del usuario a eliminar</param>

@@ -13,8 +13,9 @@ export abstract class TaskCreator {
     // Generar IDs u otra lógica compartida si es necesario
     const task = this.factoryMethod(baseInfo);
     if (!task.id) task.id = `task-${Date.now()}-${Math.random()}`;
-    if (!task.createdAt) task.createdAt = new Date();
-    if (!task.updatedAt) task.updatedAt = new Date();
+    const now = new Date().toISOString();
+    if (!task.createdAt) task.createdAt = now;
+    if (!task.updatedAt) task.updatedAt = now;
     return task;
   }
 }

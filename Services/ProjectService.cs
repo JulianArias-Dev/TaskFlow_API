@@ -28,7 +28,7 @@ public interface IProjectService
 
 /// <summary>
 /// Servicio de Project
-/// Encapsula la lógica de negocio para operaciones con proyectos
+/// Encapsula la lï¿½gica de negocio para operaciones con proyectos
 /// Utiliza patrones creacionales: Builder, Prototype
 /// </summary>
 public class ProjectService : IProjectService
@@ -68,12 +68,19 @@ public class ProjectService : IProjectService
 
     public async System.Threading.Tasks.Task<ProjectDto> CreateProjectAsync(CreateProjectDto createProjectDto, Guid ownerId)
     {
-        var project = new ProjectBuilder(ownerId)
+        var builder = new ProjectBuilder(ownerId)
             .WithName(createProjectDto.Name)
             .WithDescription(createProjectDto.Description ?? "")
             .WithColor(createProjectDto.Color)
-            .WithStartDate(Convert.ToDateTime(createProjectDto.StartDate))
-            .Build();
+            .WithStatusId(createProjectDto.StatusId);
+
+        if (createProjectDto.StartDate.HasValue)
+            builder = builder.WithStartDate(createProjectDto.StartDate.Value);
+
+        if (createProjectDto.EndDate.HasValue)
+            builder = builder.WithEndDate(createProjectDto.EndDate.Value);
+
+        var project = builder.Build();
 
         await _unitOfWork.Projects.AddAsync(project);
 
@@ -82,11 +89,11 @@ public class ProjectService : IProjectService
             .WithDefaultColumns()
             .Build();
 
-		await _unitOfWork.Boards.AddAsync(defaultBoard);
+        await _unitOfWork.Boards.AddAsync(defaultBoard);
 
-		await _unitOfWork.SaveChangesAsync();
-        
-		return MapToDto(project);
+        await _unitOfWork.SaveChangesAsync();
+
+        return MapToDto(project);
     }
 
 	public async System.Threading.Tasks.Task<ProjectDto> UpdateProjectAsync(Guid id, UpdateProjectDto updateProjectDto)
@@ -100,7 +107,7 @@ public class ProjectService : IProjectService
 		if (!string.IsNullOrEmpty(updateProjectDto.Name))
 			project.Name = updateProjectDto.Name;
 
-		if (updateProjectDto.Description != null) // Permite limpiar la descripción enviando ""
+		if (updateProjectDto.Description != null) // Permite limpiar la descripciï¿½n enviando ""
 			project.Description = updateProjectDto.Description;
 
 		if (!string.IsNullOrEmpty(updateProjectDto.Color))
@@ -173,7 +180,7 @@ public class ProjectService : IProjectService
 
 			string subject = $"Has sido invitado al proyecto: {project.Name}";
 			string content = $@"
-            <h3>¡Hola, {user.Name}!</h3>
+            <h3>ï¿½Hola, {user.Name}!</h3>
             <p>Has sido agregado al proyecto <strong>{project.Name}</strong>.</p>
             <p>Ya puedes empezar a colaborar con el equipo.</p>";
 

@@ -1,5 +1,7 @@
 services:
-  # SQL Server Database
+  # ===========================================================================
+  # SQL Server — base de datos
+  # ===========================================================================
   sqlserver:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: taskflow-sqlserver
@@ -20,7 +22,9 @@ services:
       retries: 5
       start_period: 30s
 
-  # TaskFlow API
+  # ===========================================================================
+  # TaskFlow API (.NET 9)
+  # ===========================================================================
   taskflow-api:
     build:
       context: .
@@ -38,14 +42,40 @@ services:
         condition: service_healthy
     networks:
       - taskflow-network
-    volumes:
-      - ./:/app/src
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 90s
+
+  # ===========================================================================
+  # TaskFlow Frontend (React + Vite servido por Nginx)
+  # ===========================================================================
+  taskflow-frontend:
+    build:
+      context: ./TaskFlow_front
+      dockerfile: Dockerfile
+      args:
+        # Vacío => el cliente usa /api (relativo) y nginx proxea al backend.
+        VITE_API_URL: ""
+    image: julianariasdev/taskflow-frontend:latest
+    container_name: taskflow-frontend
+    # Puerto del host configurable vía variable FRONTEND_PORT (default 8081).
+    # Si necesitas otro puerto: $env:FRONTEND_PORT=5173; docker compose up -d
+    ports:
+      - "${FRONTEND_PORT:-8081}:80"
+    depends_on:
+      taskflow-api:
+        condition: service_healthy
+    networks:
+      - taskflow-network
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
 volumes:
   sqlserver_data:

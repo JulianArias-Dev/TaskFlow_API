@@ -28,7 +28,7 @@ export const exportToPDF = (project: Project, tasks: Task[], columns: BoardColum
   
   doc.setFontSize(12);
   doc.setTextColor(100);
-  doc.text(`Clave: ${project.key} | Estado: ${project.status}`, 14, 30);
+  doc.text(`Estado: ${project.status}`, 14, 30);
   doc.text(`Generado el: ${new Date().toLocaleString()}`, 14, 37);
 
   // Stats
@@ -67,5 +67,6 @@ export const exportToPDF = (project: Project, tasks: Task[], columns: BoardColum
     headStyles: { fillGray: [41, 128, 185] },
   });
 
-  doc.save(`reporte_${project.key}_${Date.now()}.pdf`);
+  const slug = project.name.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '') || 'proyecto';
+  doc.save(`reporte_${slug}_${Date.now()}.pdf`);
 };

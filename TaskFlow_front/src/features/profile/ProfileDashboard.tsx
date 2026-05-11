@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User } from 'firebase/auth';
+import type { AuthUser } from '../../lib/firebase';
 import { Layout, User as UserIcon, Calendar, Edit2, Check, X, Briefcase, Settings, LogOut, Shield, ChevronLeft, BarChart2, Users, Upload, BookOpen } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { Button } from '../../components/ui/Button';
@@ -10,9 +10,8 @@ import { AdminDashboard } from '../admin/AdminDashboard';
 import { ProjectDetailView } from '../projects/ProjectDetailView';
 import { PatternsView } from '../patterns/PatternsView';
 import { Project } from '../../types/models';
-import { supabase } from '../../lib/supabase';
 
-export function ProfileDashboard({ user }: { user: User }) {
+export function ProfileDashboard({ user }: { user: AuthUser }) {
   const [token, setToken] = useState<string | null>(null);
   const [profile, setProfile] = useState<any>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -54,19 +53,32 @@ export function ProfileDashboard({ user }: { user: User }) {
     setLoading(true);
     const data = await authService.getUserProfile(user.uid);
     if (data && data.isActive === false) {
-      alert("Tu cuenta ha sido desactivada por un administrador.");
+      alert('Tu cuenta ha sido desactivada por un administrador.');
       authService.logout();
       return;
     }
-    setProfile(data);
-    if (data) {
-      setEditName(data.displayName || user.displayName || '');
-      setEditDesc(data.description || '');
-      setEditPhoto(data.photoURL || user.photoURL || '');
-      setEditTheme(data.theme || 'light');
-      if (data.notificationPreferences) {
-        setNotificationPrefs(data.notificationPreferences);
-      }
+    // Componer un perfil normalizado a partir del UserApi del backend + el AuthUser local.
+    const profileShape = data
+      ? {
+          uid: data.id,
+          email: data.email,
+          displayName: data.name,
+          photoURL: data.avatarUrl ?? user.photoURL ?? null,
+          role: data.role,
+          isActive: data.isActive,
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+          lastLoginAt: data.lastLoginAt,
+          description: '',
+          theme: 'light' as const,
+        }
+      : null;
+    setProfile(profileShape);
+    if (profileShape) {
+      setEditName(profileShape.displayName || user.displayName || '');
+      setEditDesc(profileShape.description || '');
+      setEditPhoto(profileShape.photoURL || user.photoURL || '');
+      setEditTheme(profileShape.theme);
     }
     setLoading(false);
   };
@@ -77,25 +89,14 @@ export function ProfileDashboard({ user }: { user: User }) {
 
     setUploadingPhoto(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${user.uid}-${Date.now()}.${fileExt}`;
-      const filePath = `avatars/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(filePath, file);
-
-      if (uploadError) {
-        if (uploadError.message.includes('Bucket not found')) {
-          throw new Error('El bucket "avatars" no existe en Supabase. Por favor ve al panel de Supabase y crea un bucket público llamado "avatars".');
-        }
-        throw uploadError;
-      }
-
-      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
-      
-      // Update local state and immediately trigger profile update via authService
-      const newPhotoUrl = data.publicUrl;
+      // TODO: subir el archivo a un endpoint del backend (p.ej. POST /Attachments/avatar).
+      // De momento generamos una data URL local para previsualización.
+      const newPhotoUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error('No se pudo leer el archivo'));
+        reader.readAsDataURL(file);
+      });
       setEditPhoto(newPhotoUrl);
       
       // Optionally auto-save if we are not in edit mode

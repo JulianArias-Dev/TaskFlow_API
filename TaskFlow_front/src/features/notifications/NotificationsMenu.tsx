@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Check, Clock, MessageSquare, AlertCircle, RefreshCw } from 'lucide-react';
-import { collection, query, where, orderBy, onSnapshot, limit } from 'firebase/firestore';
-import { db, auth } from '../../lib/firebase';
+import { auth } from '../../lib/firebase';
 import { AppNotification } from '../../types/models';
 import { dbService } from '../../services/databaseService';
 import { motion, AnimatePresence } from 'framer-motion';
+
+const POLL_INTERVAL_MS = 20_000;
 
 export function NotificationsMenu() {
   const [isOpen, setIsOpen] = useState(false);
@@ -31,38 +32,52 @@ export function NotificationsMenu() {
   useEffect(() => {
     if (!auth.currentUser) return;
 
-    const q = query(
-      collection(db, 'notifications'),
-      where('userId', '==', auth.currentUser.uid),
-      orderBy('createdAt', 'desc'),
-      limit(20)
-    );
+    let cancelled = false;
+    let prevIds = new Set<string>();
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const notifs = snapshot.docs.map(doc => ({ ...doc.data() } as AppNotification));
-      setNotifications(notifs);
-      setUnreadCount(notifs.filter(n => !n.read).length);
+    const fetchNotifications = async () => {
+      try {
+        const apiList = await dbService.getMyNotifications();
+        if (cancelled) return;
 
-      // Trigger browser push notification for new notifications
-      snapshot.docChanges().forEach((change) => {
-        if (change.type === 'added') {
-          const docData = change.doc.data() as AppNotification;
-          // Only show push notification if it's unread and was created recently (within last 10 seconds)
-          if (!docData.read && docData.createdAt) {
-            const createdAtDate = docData.createdAt.toDate ? docData.createdAt.toDate() : new Date(docData.createdAt);
-            const isRecent = (new Date().getTime() - createdAtDate.getTime()) < 10000;
-            if (isRecent && isPermissionGranted && 'Notification' in window) {
-              new Notification(docData.title, {
-                body: docData.message,
-                icon: '/favicon.ico' // Or any other suitable icon
-              });
+        const notifs: AppNotification[] = (apiList ?? []).map((n: any) => ({
+          id: n.id,
+          userId: n.userId,
+          type: n.type,
+          taskId: n.taskId ?? '',
+          projectId: n.projectId ?? '',
+          title: n.title,
+          message: n.message,
+          read: n.isRead ?? n.read ?? false,
+          createdAt: n.createdAt,
+        }));
+
+        setNotifications(notifs);
+        setUnreadCount(notifs.filter(n => !n.read).length);
+
+        // Push notification para las recién llegadas
+        if (isPermissionGranted && 'Notification' in window) {
+          for (const n of notifs) {
+            if (!prevIds.has(n.id) && !n.read) {
+              try {
+                new Notification(n.title, { body: n.message, icon: '/favicon.ico' });
+              } catch { /* ignore */ }
             }
           }
         }
-      });
-    });
+        prevIds = new Set(notifs.map(n => n.id));
+      } catch (err) {
+        console.warn('[NotificationsMenu] error cargando notificaciones', err);
+      }
+    };
 
-    return () => unsubscribe();
+    fetchNotifications();
+    const id = setInterval(fetchNotifications, POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
   }, [isPermissionGranted]);
 
   useEffect(() => {
@@ -154,7 +169,7 @@ export function NotificationsMenu() {
                           {notif.message}
                         </p>
                         <p className="text-[10px] text-gray-400 mt-2 uppercase font-medium">
-                          {new Date(notif.createdAt?.toDate ? notif.createdAt.toDate() : notif.createdAt).toLocaleString('es-ES')}
+                          {new Date(typeof notif.createdAt === 'string' ? notif.createdAt : Date.now()).toLocaleString('es-ES')}
                         </p>
                       </div>
                       {!notif.read && (

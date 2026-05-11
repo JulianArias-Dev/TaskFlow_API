@@ -1,8 +1,8 @@
-import { Task, Project } from '../../types/models';
+import { Task, Project, ProjectStatus } from '../../types/models';
 
 /**
  * Prototype Pattern
- * Especifica los tipos de objetos a crear usando una instancia prototípica, 
+ * Especifica los tipos de objetos a crear usando una instancia prototípica,
  * y crea nuevos objetos copiando este prototipo.
  */
 
@@ -18,22 +18,15 @@ export class TaskPrototype implements IPrototype<Task> {
   }
 
   clone(): Task {
-    // Deep clone usando JSON
     const cloned = JSON.parse(JSON.stringify(this.task)) as Task;
-    
-    // Resetear campos identificadores y temporales para crear una copia limpia
+    const now = new Date().toISOString();
+
     cloned.id = `task-copy-${Date.now()}`;
-    cloned.createdAt = new Date();
-    cloned.updatedAt = new Date();
+    cloned.createdAt = now;
+    cloned.updatedAt = now;
     cloned.status = 'todo'; // Reiniciar al estado inicial
-    
-    // Modificar título para indicar que es clonada (opcional)
     cloned.title = `${cloned.title} (Copia)`;
-    
-    // Limpiar historial o comentarios si corresponde
-    cloned.history = [];
-    cloned.comments = [];
-    
+
     return cloned;
   }
 }
@@ -47,14 +40,14 @@ export class ProjectPrototype implements IPrototype<Project> {
 
   clone(): Project {
     const cloned = JSON.parse(JSON.stringify(this.project)) as Project;
-    
+    const now = new Date().toISOString();
+
     cloned.id = `proj-copy-${Date.now()}`;
-    cloned.createdAt = new Date();
-    cloned.updatedAt = new Date();
-    cloned.status = 'PLANIFICADO' as any; // Volver al estado inicial
-    
+    cloned.createdAt = now;
+    cloned.updatedAt = now;
+    cloned.status = ProjectStatus.PLANIFICADO;
     cloned.name = `${cloned.name} (Copia)`;
-    
+
     return cloned;
   }
 }
