@@ -1,0 +1,7 @@
+# Solo versionar el modelo + reporte + viz; ignorar caches locales
+cache/
+converted/
+cost.json
+BENCHMARK.json
+.graphify_chunk_*.json
+.needs_update

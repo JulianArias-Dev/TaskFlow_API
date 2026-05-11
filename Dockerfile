@@ -36,8 +36,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production
 EXPOSE 8080
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Run application
 ENTRYPOINT ["dotnet", "TaskFlow_API.dll"]

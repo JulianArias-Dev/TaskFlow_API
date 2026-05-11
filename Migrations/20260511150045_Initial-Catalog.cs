@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TaskFlow_API.Migrations
 {
     /// <inheritdoc />
-    public partial class Databasev2 : Migration
+    public partial class InitialCatalog : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -25,6 +25,39 @@ namespace TaskFlow_API.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_AppRoles", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "AttachmentPolicies",
+                columns: table => new
+                {
+                    PolicyId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MaxSizeMB = table.Column<int>(type: "int", nullable: false, defaultValue: 10),
+                    MaxFilesByTask = table.Column<int>(type: "int", nullable: false, defaultValue: 20),
+                    AllowedFormats = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_AttachmentPolicies", x => x.PolicyId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "PasswordPolicies",
+                columns: table => new
+                {
+                    PolicyId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    MinLength = table.Column<int>(type: "int", nullable: false, defaultValue: 8),
+                    MaxLength = table.Column<int>(type: "int", nullable: false, defaultValue: 64),
+                    MinUpperChars = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    MinSpecialChars = table.Column<int>(type: "int", nullable: false, defaultValue: 1),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_PasswordPolicies", x => x.PolicyId);
                 });
 
             migrationBuilder.CreateTable(
@@ -53,6 +86,22 @@ namespace TaskFlow_API.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_ProjectStatuses", x => x.Id);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RevokedTokens",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    TokenId = table.Column<string>(type: "nvarchar(512)", maxLength: 512, nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    ExpiresAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    RevokedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    Reason = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RevokedTokens", x => x.Id);
                 });
 
             migrationBuilder.CreateTable(
@@ -109,9 +158,9 @@ namespace TaskFlow_API.Migrations
                     Email = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     PasswordHash = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     AppRoleId = table.Column<int>(type: "int", nullable: false),
-                    LightTheme = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
                     AvatarUrl = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    AllowEmail = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
+                    ThemePreference = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Light"),
+                    NotifyByEmail = table.Column<bool>(type: "bit", nullable: false, defaultValue: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     LastLoginAt = table.Column<DateTime>(type: "datetime2", nullable: true),
@@ -211,6 +260,28 @@ namespace TaskFlow_API.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "SavedFilters",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    UserId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    Name = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
+                    FilterCriteria = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()"),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SavedFilters", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_SavedFilters_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "Boards",
                 columns: table => new
                 {
@@ -272,6 +343,7 @@ namespace TaskFlow_API.Migrations
                 {
                     Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     Name = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true),
                     Color = table.Column<string>(type: "nvarchar(7)", maxLength: 7, nullable: false),
                     ProjectId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
@@ -456,24 +528,24 @@ namespace TaskFlow_API.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TaskTags",
+                name: "TaskLabels",
                 columns: table => new
                 {
-                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     TaskId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
-                    TagId = table.Column<Guid>(type: "uniqueidentifier", nullable: false)
+                    TagId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    AssignedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETUTCDATE()")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TaskTags", x => x.Id);
+                    table.PrimaryKey("PK_TaskLabels", x => new { x.TaskId, x.TagId });
                     table.ForeignKey(
-                        name: "FK_TaskTags_Tags_TagId",
+                        name: "FK_TaskLabels_Tags_TagId",
                         column: x => x.TagId,
                         principalTable: "Tags",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TaskTags_Tasks_TaskId",
+                        name: "FK_TaskLabels_Tasks_TaskId",
                         column: x => x.TaskId,
                         principalTable: "Tasks",
                         principalColumn: "Id",
@@ -488,6 +560,16 @@ namespace TaskFlow_API.Migrations
                     { 1, null, "Admin" },
                     { 2, null, "CommonUser" }
                 });
+
+            migrationBuilder.InsertData(
+                table: "AttachmentPolicies",
+                columns: new[] { "PolicyId", "AllowedFormats", "MaxFilesByTask", "MaxSizeMB", "UpdatedAt" },
+                values: new object[] { 1, "pdf,png,jpg,jpeg,gif,docx,xlsx,pptx,txt,zip", 20, 10, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) });
+
+            migrationBuilder.InsertData(
+                table: "PasswordPolicies",
+                columns: new[] { "PolicyId", "MaxLength", "MinLength", "MinSpecialChars", "MinUpperChars", "UpdatedAt" },
+                values: new object[] { 1, 64, 8, 1, 1, new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc) });
 
             migrationBuilder.InsertData(
                 table: "ProjectRoles",
@@ -626,6 +708,22 @@ namespace TaskFlow_API.Migrations
                 column: "StatusId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_RevokedTokens_ExpiresAt",
+                table: "RevokedTokens",
+                column: "ExpiresAt");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RevokedTokens_TokenId",
+                table: "RevokedTokens",
+                column: "TokenId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SavedFilters_UserId",
+                table: "SavedFilters",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Tags_ProjectId",
                 table: "Tags",
                 column: "ProjectId");
@@ -634,6 +732,11 @@ namespace TaskFlow_API.Migrations
                 name: "IX_TaskAssignments_UserId",
                 table: "TaskAssignments",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TaskLabels_TagId",
+                table: "TaskLabels",
+                column: "TagId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tasks_ColumnId",
@@ -666,16 +769,6 @@ namespace TaskFlow_API.Migrations
                 column: "TypeId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TaskTags_TagId",
-                table: "TaskTags",
-                column: "TagId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TaskTags_TaskId",
-                table: "TaskTags",
-                column: "TaskId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Users_AppRoleId",
                 table: "Users",
                 column: "AppRoleId");
@@ -691,6 +784,9 @@ namespace TaskFlow_API.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
+                name: "AttachmentPolicies");
+
+            migrationBuilder.DropTable(
                 name: "AuditLogs");
 
             migrationBuilder.DropTable(
@@ -703,13 +799,22 @@ namespace TaskFlow_API.Migrations
                 name: "Notifications");
 
             migrationBuilder.DropTable(
+                name: "PasswordPolicies");
+
+            migrationBuilder.DropTable(
                 name: "ProjectMembers");
+
+            migrationBuilder.DropTable(
+                name: "RevokedTokens");
+
+            migrationBuilder.DropTable(
+                name: "SavedFilters");
 
             migrationBuilder.DropTable(
                 name: "TaskAssignments");
 
             migrationBuilder.DropTable(
-                name: "TaskTags");
+                name: "TaskLabels");
 
             migrationBuilder.DropTable(
                 name: "ProjectRoles");

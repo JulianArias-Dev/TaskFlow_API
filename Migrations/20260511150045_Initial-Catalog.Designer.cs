@@ -12,8 +12,8 @@ using TaskFlow_API.Data;
 namespace TaskFlow_API.Migrations
 {
     [DbContext(typeof(TaskFlowDbContext))]
-    [Migration("20260325175409_Databasev2")]
-    partial class Databasev2
+    [Migration("20260511150045_Initial-Catalog")]
+    partial class InitialCatalog
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -54,6 +54,49 @@ namespace TaskFlow_API.Migrations
                         {
                             Id = 2,
                             Name = "CommonUser"
+                        });
+                });
+
+            modelBuilder.Entity("TaskFlow_API.Models.AttachmentPolicy", b =>
+                {
+                    b.Property<int>("PolicyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PolicyId"));
+
+                    b.Property<string>("AllowedFormats")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("MaxFilesByTask")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(20);
+
+                    b.Property<int>("MaxSizeMB")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(10);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.HasKey("PolicyId");
+
+                    b.ToTable("AttachmentPolicies", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            PolicyId = 1,
+                            AllowedFormats = "pdf,png,jpg,jpeg,gif,docx,xlsx,pptx,txt,zip",
+                            MaxFilesByTask = 20,
+                            MaxSizeMB = 10,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
                         });
                 });
 
@@ -299,6 +342,55 @@ namespace TaskFlow_API.Migrations
                     b.ToTable("Notifications", (string)null);
                 });
 
+            modelBuilder.Entity("TaskFlow_API.Models.PasswordPolicy", b =>
+                {
+                    b.Property<int>("PolicyId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PolicyId"));
+
+                    b.Property<int>("MaxLength")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(64);
+
+                    b.Property<int>("MinLength")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(8);
+
+                    b.Property<int>("MinSpecialChars")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("MinUpperChars")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int")
+                        .HasDefaultValue(1);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.HasKey("PolicyId");
+
+                    b.ToTable("PasswordPolicies", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            PolicyId = 1,
+                            MaxLength = 64,
+                            MinLength = 8,
+                            MinSpecialChars = 1,
+                            MinUpperChars = 1,
+                            UpdatedAt = new DateTime(2026, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc)
+                        });
+                });
+
             modelBuilder.Entity("TaskFlow_API.Models.Project", b =>
                 {
                     b.Property<Guid>("Id")
@@ -454,6 +546,75 @@ namespace TaskFlow_API.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TaskFlow_API.Models.RevokedToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<DateTime>("RevokedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("TokenId")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("nvarchar(512)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ExpiresAt");
+
+                    b.HasIndex("TokenId")
+                        .IsUnique();
+
+                    b.ToTable("RevokedTokens");
+                });
+
+            modelBuilder.Entity("TaskFlow_API.Models.SavedFilter", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.Property<string>("FilterCriteria")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("SavedFilters");
+                });
+
             modelBuilder.Entity("TaskFlow_API.Models.Tag", b =>
                 {
                     b.Property<Guid>("Id")
@@ -467,6 +628,10 @@ namespace TaskFlow_API.Migrations
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -569,6 +734,26 @@ namespace TaskFlow_API.Migrations
                     b.HasIndex("UserId");
 
                     b.ToTable("TaskAssignments");
+                });
+
+            modelBuilder.Entity("TaskFlow_API.Models.TaskLabel", b =>
+                {
+                    b.Property<Guid>("TaskId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("TagId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("datetime2")
+                        .HasDefaultValueSql("GETUTCDATE()");
+
+                    b.HasKey("TaskId", "TagId");
+
+                    b.HasIndex("TagId");
+
+                    b.ToTable("TaskLabels", (string)null);
                 });
 
             modelBuilder.Entity("TaskFlow_API.Models.TaskPriority", b =>
@@ -678,27 +863,6 @@ namespace TaskFlow_API.Migrations
                         });
                 });
 
-            modelBuilder.Entity("TaskFlow_API.Models.TaskTag", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TagId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("TaskId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("TagId");
-
-                    b.HasIndex("TaskId");
-
-                    b.ToTable("TaskTags");
-                });
-
             modelBuilder.Entity("TaskFlow_API.Models.TaskType", b =>
                 {
                     b.Property<int>("Id")
@@ -757,11 +921,6 @@ namespace TaskFlow_API.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<bool>("AllowEmail")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<int>("AppRoleId")
                         .HasColumnType("int");
 
@@ -781,18 +940,25 @@ namespace TaskFlow_API.Migrations
                     b.Property<DateTime?>("LastLoginAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<bool>("LightTheme")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<bool>("NotifyByEmail")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true);
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ThemePreference")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)")
+                        .HasDefaultValue("Light");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -933,6 +1099,17 @@ namespace TaskFlow_API.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("TaskFlow_API.Models.SavedFilter", b =>
+                {
+                    b.HasOne("TaskFlow_API.Models.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("TaskFlow_API.Models.Tag", b =>
                 {
                     b.HasOne("TaskFlow_API.Models.Project", "Project")
@@ -1009,16 +1186,16 @@ namespace TaskFlow_API.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("TaskFlow_API.Models.TaskTag", b =>
+            modelBuilder.Entity("TaskFlow_API.Models.TaskLabel", b =>
                 {
                     b.HasOne("TaskFlow_API.Models.Tag", "Tag")
-                        .WithMany("TaskTags")
+                        .WithMany("TaskLabels")
                         .HasForeignKey("TagId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("TaskFlow_API.Models.Task", "Task")
-                        .WithMany("TaskTags")
+                        .WithMany("TaskLabels")
                         .HasForeignKey("TaskId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1062,7 +1239,7 @@ namespace TaskFlow_API.Migrations
 
             modelBuilder.Entity("TaskFlow_API.Models.Tag", b =>
                 {
-                    b.Navigation("TaskTags");
+                    b.Navigation("TaskLabels");
                 });
 
             modelBuilder.Entity("TaskFlow_API.Models.Task", b =>
@@ -1075,7 +1252,7 @@ namespace TaskFlow_API.Migrations
 
                     b.Navigation("SubTasks");
 
-                    b.Navigation("TaskTags");
+                    b.Navigation("TaskLabels");
                 });
 
             modelBuilder.Entity("TaskFlow_API.Models.User", b =>

@@ -1,0 +1,498 @@
+{
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\docker-start.ps1": {
+    "mtime": 1778259960.3365834,
+    "hash": "7eabbf466f19ef7aaa4587d9168f866a"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Program.cs": {
+    "mtime": 1778273647.926457,
+    "hash": "d00d8f684a4b9f71e25e43e107edae51"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\AttachmentsController.cs": {
+    "mtime": 1778262423.5230029,
+    "hash": "c9aa21a211bd7960a5c70f98cf5b1e5c"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\AuthController.cs": {
+    "mtime": 1778261905.2906086,
+    "hash": "6f5aab920a81b80ca3f2241a6decc49c"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\BaseCatalogController.cs": {
+    "mtime": 1778261968.5349848,
+    "hash": "dfa21e369ce8ac7be77dc160c8a97878"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\BoardsController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "7f4601c7f5151b10a30524dfcbc28579"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\ColumnsController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "677a033ec7c2b1f56fa0a01161f9933b"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\CommentsController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "eec71adcd69fa07914aab1c62d438d9e"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\DashboardController.cs": {
+    "mtime": 1778262325.2341197,
+    "hash": "3044e672c8078f611a4a73ce593158e1"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\HealthController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "a2c74d0d41c802ac9d70f3ae2f8d3249"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\ProjectsController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "7af1e57f035ae64737f5f8e66780dc2a"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\ReportsController.cs": {
+    "mtime": 1778262219.1309557,
+    "hash": "a7e74ce86ee59f4efc55eb50e48e7c9e"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\SavedFiltersController.cs": {
+    "mtime": 1778262051.5400977,
+    "hash": "a27ef90f45ab7d3f15ac5e8c1ed43409"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\TagsController.cs": {
+    "mtime": 1778259960.2955077,
+    "hash": "9d6d03d37ed5fa753226e8146da1acb5"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\TasksController.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "c9b4015a0f491524d7da518a6e48decd"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\ThemesController.cs": {
+    "mtime": 1778261987.6454883,
+    "hash": "2baa86d10bc766df0609b6f8c7d83163"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Controllers\\UsersController.cs": {
+    "mtime": 1778261977.4226446,
+    "hash": "74c2738929bc8fddac7947fa683e3ffb"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Data\\TaskFlowDbContext.cs": {
+    "mtime": 1778273701.025777,
+    "hash": "048750836b6b7db197a1b36c7f9788ed"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\AuditLogDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "7b8eac2c0b7f6a9468a86503aa81c05e"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\BoardDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "72e31093deb11abb589600b13de2a0e1"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\CatalogDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "3d07b0f5b1a2270f483336d0bfa481be"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\ColumnDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "b270dc2682a3b030ef1c174be1eda599"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\CommentDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "e21035f595cc99a5757941ad4c9f5b36"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\DashboardDto.cs": {
+    "mtime": 1778262293.06176,
+    "hash": "8aad3aedf6be5b19e2e42d169756a99d"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\FileDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "8ac86d797330fd7979c401af47616f22"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\NotificationDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "9f5472d36afd19b7360ef0eee0852f48"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\ProjectDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "13fe07ecf67449bd995c1beb66f693f7"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\ProjectMemberDto.cs": {
+    "mtime": 1778259960.2995186,
+    "hash": "0cd2ecd4148023220dbdaf3068f54391"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\ResponseDto.cs": {
+    "mtime": 1778259960.3039532,
+    "hash": "aadb33beff429208b5d24547e9bb9dcb"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\SavedFilterDto.cs": {
+    "mtime": 1778262023.266565,
+    "hash": "def37c18f0fe5c7aa38ea4dfc95ad708"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\TagDto.cs": {
+    "mtime": 1778259960.3039532,
+    "hash": "ddaa64ebd2165d43e4846736571fa7ef"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\TaskDto.cs": {
+    "mtime": 1778259960.3039532,
+    "hash": "0f9e953a6902596999884a0f5771b607"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DTOs\\UserDto.cs": {
+    "mtime": 1778273741.6124372,
+    "hash": "59eb645807a53a595662c25a0150d42f"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Mappings\\MappingProfile.cs": {
+    "mtime": 1778273719.3525898,
+    "hash": "915caf8d7ad5b4b662960b81130c6cc1"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Middleware\\GlobalExceptionHandlerMiddleware.cs": {
+    "mtime": 1778259960.3054562,
+    "hash": "8925f237148dcaa828914b1ae71325cb"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Middleware\\JwtBlacklistMiddleware.cs": {
+    "mtime": 1778261860.2386074,
+    "hash": "75b43ceb5b17bdbe0b451c8c4c073539"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Migrations\\20260325175409_Databasev2.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "8a55a2e08044f894bf8ee7b8f87a0e20"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Migrations\\20260325175409_Databasev2.Designer.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "7e207d328b2cf9e8d1097d3936161f43"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Migrations\\20260508174927_AddRevokedTokensAndSavedFilters.cs": {
+    "mtime": 1778262567.5613563,
+    "hash": "6ee1fc73a07294f2cdcfcd712ce550f1"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Migrations\\20260508174927_AddRevokedTokensAndSavedFilters.Designer.cs": {
+    "mtime": 1778262567.5643582,
+    "hash": "be98afcdbe33d1bd58980d824a695b30"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Migrations\\TaskFlowDbContextModelSnapshot.cs": {
+    "mtime": 1778262567.5650249,
+    "hash": "6f7d25af3f37aa79058823cbf34d3d39"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\AttachmentPolicy.cs": {
+    "mtime": 1778273558.1697767,
+    "hash": "4fc5a75d3b3baac4a8dfb6979a0cc7e6"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\AuditLog.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "5796390787f2b175228bd8fd7beb7a4b"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\BaseCatalog.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "3a01b3805cf4d7a55061c7416a4a6278"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Board.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "7de075cb58b302b74ab675a6d15a1279"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Column.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "785f70061d6d6dc10bf95e9018474273"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Comment.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "403fea33970a71f4ec4775cd91a86194"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\File.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "806e11b36ea191db1c7059f19a74bc10"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Notification.cs": {
+    "mtime": 1778259960.3080575,
+    "hash": "255fd8cf4b6afcb54ab2a72e6555f9ec"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\PasswordPolicy.cs": {
+    "mtime": 1778273540.2211099,
+    "hash": "1d6c1b68c8a478f07268173550b654ec"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Project.cs": {
+    "mtime": 1778259960.3121598,
+    "hash": "0d35bb5fef497d6173f2d42bda294840"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\ProjectMember.cs": {
+    "mtime": 1778259960.3121598,
+    "hash": "5a719744751cdccb635da2879f6ef9af"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\RevokedToken.cs": {
+    "mtime": 1778261821.6122012,
+    "hash": "afb8b0525a58b8004f6cd5a5369b59b8"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\SavedFilter.cs": {
+    "mtime": 1778262009.9855075,
+    "hash": "a68a0889dfb7f6c43ea5a4cd9c8fb9f6"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Tag.cs": {
+    "mtime": 1778273591.2127128,
+    "hash": "50bff4b993003f87f10398ded0b8fd54"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\Task.cs": {
+    "mtime": 1778273603.6917381,
+    "hash": "2da0e7685040c6045cd39c00b42f2aeb"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\TaskLabel.cs": {
+    "mtime": 1778273573.0647273,
+    "hash": "a608e659beb00fc2e549ba6ec1e548a9"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\ThemePreference.cs": {
+    "mtime": 1778273565.737252,
+    "hash": "ccb4c4d342e85653af6a76cb2ad74125"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Models\\User.cs": {
+    "mtime": 1778273583.0510168,
+    "hash": "d6e7b9d2069b39b25f9adcb4707df5c3"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\obj\\Debug\\net9.0\\TaskFlow_API.AssemblyInfo.cs": {
+    "mtime": 1778262512.629025,
+    "hash": "15d72e3c7977ea8465f280bab6e57627"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\obj\\Debug\\net9.0\\TaskFlow_API.GlobalUsings.g.cs": {
+    "mtime": 1778262512.0117176,
+    "hash": "27a3303725b3d7fb45be5fb2a2844928"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\obj\\Debug\\net9.0\\TaskFlow_API.MvcApplicationPartsAssemblyInfo.cs": {
+    "mtime": 1778262513.0697083,
+    "hash": "7f9772817e864396a05b7bce5a45feeb"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\AbstractFactory\\ThemeFactory.cs": {
+    "mtime": 1778259960.3150668,
+    "hash": "a9384e30bb0765d380ba8492f80465c0"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Adapter\\InAppNotificationAdapter.cs": {
+    "mtime": 1778262081.1731288,
+    "hash": "a01b866a360fae369877a23116f375f5"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Adapter\\INotificationAdapter.cs": {
+    "mtime": 1778262072.7064803,
+    "hash": "5537f23fe21956c22dce50fd544b5b28"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Adapter\\SendGridNotificationAdapter.cs": {
+    "mtime": 1778262113.3537908,
+    "hash": "ce6ab9f98e96e86d8f3227db079262d0"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Adapter\\SmtpEmailNotificationAdapter.cs": {
+    "mtime": 1778262093.8902674,
+    "hash": "fa7bd78bdea9e6f5f1167d91a5708c4e"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Bridge\\CsvReportFormat.cs": {
+    "mtime": 1778262172.4522977,
+    "hash": "f0d6ae7296cc7e9ecfbda137963e2853"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Bridge\\IReportFormat.cs": {
+    "mtime": 1778262143.4616482,
+    "hash": "166dbe945f0b0e2decde4f160924b292"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Bridge\\PdfReportFormat.cs": {
+    "mtime": 1778262162.808429,
+    "hash": "73d9494173e07b821f49fcdb5404a17a"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Bridge\\Report.cs": {
+    "mtime": 1778262194.0432334,
+    "hash": "f1c21bda15f2651913b524dc379450fd"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Builder\\BoardBuilder.cs": {
+    "mtime": 1778259960.3150668,
+    "hash": "821499785b9679602c1e82b3ada46072"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Builder\\TaskBuilder.cs": {
+    "mtime": 1778259960.3150668,
+    "hash": "8cfe4ba08c37731ec7bed093b851f975"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Composite\\ITaskComponent.cs": {
+    "mtime": 1778262230.70783,
+    "hash": "098848ecbda40d56d3becf75a4e9909f"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Composite\\TaskComposite.cs": {
+    "mtime": 1778262250.065781,
+    "hash": "7f7254e7ac54decbc894fac014b03113"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Composite\\TaskLeaf.cs": {
+    "mtime": 1778262237.6952481,
+    "hash": "be360e4876bba94ac3ce5bd6aa8e8f55"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Decorator\\BaseTaskView.cs": {
+    "mtime": 1778262267.2777488,
+    "hash": "e7dfeb0cdaffb8ad41236d5eb1c9084a"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Decorator\\ITaskView.cs": {
+    "mtime": 1778262261.4233563,
+    "hash": "a88f9c60b0245b2770b9da700c950157"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Decorator\\TaskViewDecorator.cs": {
+    "mtime": 1778273734.8102283,
+    "hash": "d2ada3ccf1964287d3ed8c31a3ba2e75"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Facade\\ProjectFacade.cs": {
+    "mtime": 1778262316.0148523,
+    "hash": "82230527a35891f6b9464c433e61d329"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Factory\\TaskFactory.cs": {
+    "mtime": 1778259960.3165996,
+    "hash": "40caee45b9bb54721857daa6d6e662c9"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Flyweight\\TaskFlyweightFactory.cs": {
+    "mtime": 1778262399.6283412,
+    "hash": "7bccf06e473d4e24ace0bdf23f009231"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Flyweight\\TaskMetadataFlyweight.cs": {
+    "mtime": 1778262370.6948476,
+    "hash": "3994c1e472e834d98aded876b7b37872"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Prototype\\PrototypeManager.cs": {
+    "mtime": 1778259960.3165996,
+    "hash": "8886e0fd6d46054375f02ca43efcc635"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Proxy\\TaskServiceProxy.cs": {
+    "mtime": 1778262359.6129582,
+    "hash": "455abb102cde5ab97360d277a1ee6304"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Patterns\\Singleton\\TaskFlowDbContextSingleton.cs": {
+    "mtime": 1778259960.3165996,
+    "hash": "ac354e912794b3d4ca2e96359ab9d8bc"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\AuditLogRepository.cs": {
+    "mtime": 1778259960.3203602,
+    "hash": "90ef834bb23b2940a03d09d3e499e4a9"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\BaseCatalogRepositoy.cs": {
+    "mtime": 1778259960.3203602,
+    "hash": "b6a646103ceb4db819c7a24dca58a543"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\BoardRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "1ce490f4f9d09b0c18fa26544afde9cf"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\ColumnRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "7977ebd28c932269459a42760f03bd67"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\CommentRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "17b7a8818c005ab294b5b8146fd2c383"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\FileRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "7fd43e8c393b88e6cf1e1621bdf88fd7"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\IRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "419890079fea2f9f48203f369bafaca4"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\NotificationRepository.cs": {
+    "mtime": 1778259960.321049,
+    "hash": "de442a4e75f5d44e12060b1be5c9476d"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\ProjectMemberRepository.cs": {
+    "mtime": 1778259960.3248532,
+    "hash": "127779769b64320abf66a03879714168"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\ProjectRepository.cs": {
+    "mtime": 1778259960.3248532,
+    "hash": "db6e91238a95d23937512fefb508e837"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\RevokedTokenRepository.cs": {
+    "mtime": 1778261830.8105855,
+    "hash": "ef238dd7be8292d28bbb49022c8c18ae"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\SavedFilterRepository.cs": {
+    "mtime": 1778262016.6739402,
+    "hash": "98a874fcabdd256384774efc8676088d"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\TagRepository.cs": {
+    "mtime": 1778273724.1235194,
+    "hash": "48d11389da12423a04f25c9253f651ef"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\TaskLabelRepository.cs": {
+    "mtime": 1778273626.2420063,
+    "hash": "65a1874227d2000a53419769f05009cf"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\TaskRepository.cs": {
+    "mtime": 1778259960.325357,
+    "hash": "9ca535dedd120e241adeb0e35d33184d"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\UnitOfWork.cs": {
+    "mtime": 1778273642.2955282,
+    "hash": "488cd976736d99405d57bc80c7d0369a"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Repositories\\UserRepository.cs": {
+    "mtime": 1778259960.325357,
+    "hash": "8a07d506f615fb9f25db4be6ace7d012"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\AuditLogService.cs": {
+    "mtime": 1778259960.325357,
+    "hash": "ea9b7deb6b8254f9d2b734381a8aa72e"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\AuthService.cs": {
+    "mtime": 1778273758.3000908,
+    "hash": "63453c834126e54f5216c8901fb0e240"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\BaseCatalogService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "3869d5e176d769861966fb0a40237327"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\BoardService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "3df63993fbba762e5e3af5c3e8a230f7"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\ColumnService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "a88daccd2e2249794f5489a9e65b0316"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\CommentService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "25c1ecede0dabade8d6416bd4aaefee5"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\FileService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "4089e30a7a5699a26132de5914ae83ed"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\NotificationService.cs": {
+    "mtime": 1778273763.4716575,
+    "hash": "baf4a88a7bd5f7737350749142685c73"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\ProjectService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "dad1acd05204d944b78ac8a498625c79"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\ReportService.cs": {
+    "mtime": 1778262209.6032257,
+    "hash": "9a175ac64df2e6fdef96e016abdf4773"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\SavedFilterService.cs": {
+    "mtime": 1778262037.0294628,
+    "hash": "b32a0d843a5146e53de1c83ebe90f063"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\TagService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "05f8e1c0b06f6f80e827466e50918c91"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\TaskService.cs": {
+    "mtime": 1778259960.3288918,
+    "hash": "a5316f96bc796a464f9c139178eaca86"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\ThemeService.cs": {
+    "mtime": 1778259960.3330126,
+    "hash": "63e41443794f721683acea57753bb279"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\TokenBlacklistService.cs": {
+    "mtime": 1778261850.877915,
+    "hash": "da218665c517ad7a73282ee1e4118164"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Services\\UserService.cs": {
+    "mtime": 1778259960.3330126,
+    "hash": "797c5dffff44c2cff4e7d3487cbee358"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\Validations\\CustomValidationAttributes.cs": {
+    "mtime": 1778259960.3365834,
+    "hash": "af18bac378f30fdfc9c140c0b1c3b1e9"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\docker-compose.yml": {
+    "mtime": 1778259960.3365834,
+    "hash": "6becd1ac8164d3d5c8bb852bd2bf25e8"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\DOCKER-README.md": {
+    "mtime": 1778259960.2995186,
+    "hash": "aaeeaffbb5d5eb86ca4d6671f74ca3ae"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\ENDPOINTS.md": {
+    "mtime": 1778275441.171586,
+    "hash": "4f2c296f7cfa8267c8107cffabd00376"
+  },
+  "C:\\AngularEx\\Taskflow_gnr\\TaskFlow_API\\obj\\Debug\\net9.0\\TaskFlow_API.csproj.FileListAbsolute.txt": {
+    "mtime": 1778262517.6509635,
+    "hash": "1736046596291615e48eb1c3ee1091b7"
+  }
+}

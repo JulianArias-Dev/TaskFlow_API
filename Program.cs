@@ -204,11 +204,21 @@ var app = builder.Build();
 // ----------------------------------------------------------------------
 app.UseGlobalExceptionHandler();
 app.UseCors("AllowAll");
-app.UseHttpsRedirection();
+
+// HTTPS redirect solo fuera de contenedores (en Docker exponemos solo HTTP).
+if (!builder.Configuration.GetValue<bool>("DOTNET_RUNNING_IN_CONTAINER"))
+    app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseJwtBlacklist();   // Verifica blacklist DESPUÉS de autenticar
 app.UseAuthorization();
+
+// En Program.cs, antes de LoadFromDatabaseAsync()
+using (var scope = app.Services.CreateScope())
+{
+	var db = scope.ServiceProvider.GetRequiredService<TaskFlowDbContext>();
+	await db.Database.MigrateAsync(); // Esto crea la DB y las tablas si no existen
+}
 
 if (app.Environment.IsDevelopment())
 {
