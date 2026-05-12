@@ -122,7 +122,10 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     estimatedHours: t.estimatedHours,
     loggedHours: t.actualHours,
     assigneeIds: t.assignedUserIds ?? [],
-    labels: (t.tags ?? []).map((name) => ({ name, color: '#3498db' })),
+    labels: (t.tags ?? []).map((raw) => {
+      const [name, color] = raw.split('|');
+      return { name, color: color ?? '#3498db' };
+    }),
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
     fileCount: t.fileCount ?? 0,
@@ -452,11 +455,11 @@ export class DatabaseService {
     const payload: UpdateTaskRequest = {
       title: updates.title,
       description: updates.description,
-      dueDate: updates.dueDate ?? undefined,
+      dueDate: updates.dueDate ? updates.dueDate + 'T12:00:00' : undefined,
       estimatedHours: updates.estimatedHours ?? undefined,
       actualHours: updates.loggedHours ?? undefined,
       assignedUserIds: updates.assigneeIds,
-      tags: updates.labels?.map((l) => l.name),
+      tags: updates.labels?.map((l) => `${l.name}|${l.color}`),
     };
 
     if (updates.priority) {

@@ -464,7 +464,7 @@ export function ProjectDetailView({
                                   {(task.dueDate || task.estimatedHours || task.loggedHours) && (
                                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 ml-auto">
                                       {task.dueDate && (
-                                        <span className={`flex items-center gap-0.5 ${!col.name.toLowerCase().includes('hecho') && !col.name.toLowerCase().includes('completad') && !col.name.toLowerCase().includes('done') && new Date(task.dueDate).getTime() < new Date().setHours(0,0,0,0) ? 'text-red-600 font-bold' : ''}`} title="Vencimiento"><Clock className="w-3 h-3" /> {new Date(task.dueDate).toLocaleDateString()}</span>
+                                        <span className={`flex items-center gap-0.5 ${!col.name.toLowerCase().includes('hecho') && !col.name.toLowerCase().includes('completad') && !col.name.toLowerCase().includes('done') && new Date(task.dueDate).getTime() < new Date().setHours(0,0,0,0) ? 'text-red-600 font-bold' : ''}`} title="Vencimiento"><Clock className="w-3 h-3" /> {task.dueDate.split('-').reverse().join('-')}</span>
                                       )}
                                       {task.estimatedHours && (
                                         <span className="flex items-center gap-0.5" title="Estimación"><Box className="w-3 h-3" /> {task.estimatedHours}h</span>

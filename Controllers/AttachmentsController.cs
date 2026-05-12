@@ -89,6 +89,7 @@ public class AttachmentsController : ControllerBase
 
     /// <summary>Descarga el contenido binario del archivo.</summary>
     [HttpGet("{id}/download")]
+    [AllowAnonymous] // Permitir descarga sin autenticación (opcional, según requisitos)
     public async Task<IActionResult> Download(Guid id)
     {
         var file = await _fileService.GetFileByIdAsync(id);

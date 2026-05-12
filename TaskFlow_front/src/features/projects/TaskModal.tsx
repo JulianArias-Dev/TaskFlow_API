@@ -418,9 +418,9 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                   {attachments.map((att) => (
                     <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
                       {isImage(att.mimeType) ? (
-                        <a href={`${SERVER_BASE_URL}${att.fileUrl}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                        <a href={`${SERVER_BASE_URL}/api/Attachments/${att.id}/download`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
                           <img
-                            src={`${SERVER_BASE_URL}${att.fileUrl}`}
+                            src={`${SERVER_BASE_URL}/api/Attachments/${att.id}/download`}
                             alt={att.fileName}
                             className="w-12 h-12 object-cover rounded-md border border-gray-200 dark:border-gray-600 hover:opacity-80 transition-opacity"
                           />
@@ -431,7 +431,7 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                         </div>
                       )}
                       <a
-                        href={`${SERVER_BASE_URL}${att.fileUrl}`}
+                        href={`${SERVER_BASE_URL}/api/Attachments/${att.id}/download`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="text-sm text-blue-600 hover:underline truncate flex-1"
