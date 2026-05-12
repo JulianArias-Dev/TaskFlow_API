@@ -82,6 +82,15 @@ export const userStorage = {
   },
 };
 
+// URL raíz del servidor (sin /api) — para recursos estáticos como uploads
+export const SERVER_BASE_URL = (() => {
+  const envUrl = (import.meta as any).env?.VITE_API_URL as string | undefined;
+  if (envUrl && envUrl.trim().length > 0) return envUrl.replace(/\/$/, '').replace(/\/api$/, '');
+  const runtime = (globalThis as any).__TASKFLOW_API as string | undefined;
+  if (runtime && runtime.trim().length > 0) return runtime.replace(/\/$/, '').replace(/\/api$/, '');
+  return 'http://localhost:8080';
+})();
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   body?: unknown;

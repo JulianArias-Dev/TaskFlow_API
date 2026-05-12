@@ -74,6 +74,7 @@ export interface Task {
   assigneeIds?: string[];
   createdAt: string;
   updatedAt: string;
+  fileCount: number;
 }
 
 export interface AppNotification {
@@ -95,4 +96,21 @@ export interface SavedFilter {
   userId: string;
   criteria: any;
   createdAt: string;
+}
+
+export interface AttachmentItem {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  mimeType: string;
+}
+
+export interface CommentItem {
+  id: string;
+  content: string;
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  createdAt: string;
+  isEdited: boolean;
 }

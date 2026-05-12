@@ -19,6 +19,8 @@ import type {
   ProjectStatus,
   SavedFilter,
   Task,
+  AttachmentItem,
+  CommentItem,
 } from '../types/models';
 import type {
   BoardApi,
@@ -123,6 +125,7 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     labels: (t.tags ?? []).map((name) => ({ name, color: '#3498db' })),
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
+    fileCount: t.fileCount ?? 0,
   };
 }
 
@@ -507,6 +510,75 @@ export class DatabaseService {
     };
     return map[type?.toUpperCase()] ?? type;
   }
+
+  // ============================ ADJUNTOS ============================
+
+async uploadAttachment(taskId: string, file: File): Promise<void> {
+  const formData = new FormData();
+  formData.append('File', file);
+  formData.append('TaskId', taskId);
+
+  await api.post('/Attachments/upload', formData);
+}
+
+async getAttachments(taskId: string): Promise<AttachmentItem[]> {
+  const res = await api.get<any[]>(`/Attachments/task/${taskId}`);
+  return (res ?? []).map(f => ({
+    id: f.id,
+    fileName: f.fileName,
+    fileUrl: f.fileUrl,
+    mimeType: f.mimeType,
+  }));
+}
+
+async deleteAttachment(attachmentId: string): Promise<void> {
+  await api.delete(`/Attachments/${attachmentId}`);
+}
+
+// ============================ COMENTARIOS ============================
+
+async getComments(taskId: string): Promise<CommentItem[]> {
+  const res = await api.get<any[]>(`/Comments/task/${taskId}`);
+  return (res ?? []).map(c => ({
+    id: c.id,
+    content: c.content,
+    userId: c.userId,
+    userName: c.userName,
+    userAvatar: c.userAvatar ?? null,
+    createdAt: c.createdAt,
+    isEdited: c.isEdited ?? false,
+  }));
+}
+
+async createComment(taskId: string, content: string, userId: string): Promise<CommentItem> {
+  const res = await api.post<any>('/Comments', { taskId, content, userId });
+  return {
+    id: res.id,
+    content: res.content,
+    userId: res.userId,
+    userName: res.userName,
+    userAvatar: res.userAvatar ?? null,
+    createdAt: res.createdAt,
+    isEdited: false,
+  };
+}
+
+async updateComment(commentId: string, content: string): Promise<CommentItem> {
+  const res = await api.put<any>(`/Comments/${commentId}`, { content });
+  return {
+    id: res.id,
+    content: res.content,
+    userId: res.userId,
+    userName: res.userName,
+    userAvatar: res.userAvatar ?? null,
+    createdAt: res.createdAt,
+    isEdited: res.isEdited ?? true,
+  };
+}
+
+async deleteComment(commentId: string): Promise<void> {
+  await api.delete(`/Comments/${commentId}`);
+}
 
   // ============================ NOTIFICACIONES ============================
 

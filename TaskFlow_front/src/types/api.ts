@@ -3,6 +3,8 @@
  * No depende de Firebase ni de ningún proveedor externo.
  */
 
+import { TaskLabel } from "./models";
+
 export interface ApiResponse<T = unknown> {
   success: boolean;
   message: string;

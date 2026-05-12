@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { Task, TaskLabel, BoardColumn } from '../../types/models';
+import { Task, TaskLabel, BoardColumn, AttachmentItem, CommentItem } from '../../types/models';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { X, Tag, Copy } from 'lucide-react';
+import { X, Tag, Copy, Paperclip, MessageSquare, Send } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { dbService } from '../../services/databaseService';
 import { TaskFactory, TaskPrototype } from '../../lib/designPatterns';
 import { useCatalog } from '../../hooks/useCatalog';
+import { auth } from '../../lib/firebase';
+import { SERVER_BASE_URL } from '../../lib/api';
 
 const PREDEFINED_COLORS = [
   '#ef4444', '#f97316', '#f59e0b', '#10b981',
@@ -43,8 +45,19 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
 
   const [members, setMembers] = useState<{ uid: string; email: string; displayName?: string }[]>([]);
 
-  // Catálogos del backend (BaseCatalogController) — sustituyen los <option>
-  // hardcoded para que las opciones reflejen el estado real de la BD.
+  // --- Adjuntos ---
+  const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [loadingAttachments, setLoadingAttachments] = useState(false);
+
+  // --- Comentarios ---
+  const [comments, setComments] = useState<CommentItem[]>([]);
+  const [loadingComments, setLoadingComments] = useState(false);
+  const [newComment, setNewComment] = useState('');
+  const [submittingComment, setSubmittingComment] = useState(false);
+  const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
+  const [editingContent, setEditingContent] = useState('');
+
   const { items: taskTypes } = useCatalog('task-types');
   const { items: taskPriorities } = useCatalog('task-priorities');
 
@@ -54,6 +67,25 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       .then((m) => setMembers(m.map((x) => ({ uid: x.uid, email: x.email }))))
       .catch(console.error);
   }, [projectId]);
+
+  // Cargar adjuntos y comentarios solo en modo edición
+  useEffect(() => {
+    if (!task?.id) return;
+
+    setLoadingAttachments(true);
+    dbService
+      .getAttachments(task.id)
+      .then(setAttachments)
+      .catch(console.error)
+      .finally(() => setLoadingAttachments(false));
+
+    setLoadingComments(true);
+    dbService
+      .getComments(task.id)
+      .then(setComments)
+      .catch(console.error)
+      .finally(() => setLoadingComments(false));
+  }, [task?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +111,14 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         : TaskFactory.createTask(type, baseSaveData);
 
       await onSave(saveData);
+
+      // Subir archivos pendientes — solo si la tarea ya existe (edición)
+      if (task?.id && pendingFiles.length > 0) {
+        await Promise.all(
+          pendingFiles.map((f) => dbService.uploadAttachment(task.id, f))
+        );
+      }
+
       onClose();
     } catch (error) {
       console.error(error);
@@ -108,6 +148,7 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         projectId,
         createdAt: task?.createdAt || now,
         updatedAt: now,
+        fileCount: 0,
       };
 
       const prototype = new TaskPrototype(sourceData);
@@ -139,6 +180,47 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       setAssigneeIds([...assigneeIds, uid]);
     }
   };
+
+  // --- Handlers de comentarios ---
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !task?.id || !auth.currentUser) return;
+    setSubmittingComment(true);
+    try {
+      const created = await dbService.createComment(task.id, newComment.trim(), auth.currentUser.uid);
+      setComments((prev) => [...prev, created]);
+      setNewComment('');
+    } catch (error) {
+      console.error(error);
+      alert('Error al agregar comentario');
+    } finally {
+      setSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    try {
+      await dbService.deleteComment(commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+    } catch (error) {
+      console.error(error);
+      alert('Error al eliminar comentario');
+    }
+  };
+
+  const handleUpdateComment = async (commentId: string) => {
+    if (!editingContent.trim()) return;
+    try {
+      const updated = await dbService.updateComment(commentId, editingContent.trim());
+      setComments((prev) => prev.map((c) => (c.id === commentId ? updated : c)));
+      setEditingCommentId(null);
+      setEditingContent('');
+    } catch (error) {
+      console.error(error);
+      alert('Error al editar comentario');
+    }
+  };
+
+  const isImage = (mimeType: string) => mimeType.startsWith('image/');
 
   return (
     <motion.div
@@ -201,13 +283,9 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 value={type}
                 onChange={(e) => setType(e.target.value as Task['type'])}
               >
-                {taskTypes.length === 0 && (
-                  <option value={type}>Cargando…</option>
-                )}
+                {taskTypes.length === 0 && <option value={type}>Cargando…</option>}
                 {taskTypes.map((t) => (
-                  <option key={t.id} value={t.name.toUpperCase()}>
-                    {t.name}
-                  </option>
+                  <option key={t.id} value={t.name.toUpperCase()}>{t.name}</option>
                 ))}
               </select>
             </div>
@@ -219,13 +297,9 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 value={priority}
                 onChange={(e) => setPriority(e.target.value as Task['priority'])}
               >
-                {taskPriorities.length === 0 && (
-                  <option value={priority}>Cargando…</option>
-                )}
+                {taskPriorities.length === 0 && <option value={priority}>Cargando…</option>}
                 {taskPriorities.map((p) => (
-                  <option key={p.id} value={p.name.toUpperCase()}>
-                    {p.name}
-                  </option>
+                  <option key={p.id} value={p.name.toUpperCase()}>{p.name}</option>
                 ))}
               </select>
             </div>
@@ -256,6 +330,7 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
             />
           </div>
 
+          {/* Responsables */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Responsables</label>
             <div className="flex flex-wrap gap-2">
@@ -274,14 +349,16 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 </button>
               ))}
               {members.length === 0 && (
-                <span className="text-xs text-gray-400">Sin miembros disponibles</span>
+                <span className="text-xs text-gray-400">
+                  Sin miembros — agrega miembros al proyecto desde Ajustes
+                </span>
               )}
             </div>
           </div>
 
+          {/* Etiquetas */}
           <div className="space-y-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">Etiquetas</label>
-
             <div className="flex flex-wrap gap-2 mb-2">
               {labels.map((lbl, idx) => (
                 <div key={idx} className="flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium text-white shadow-sm" style={{ backgroundColor: lbl.color }}>
@@ -326,6 +403,194 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
               </div>
             )}
           </div>
+
+          {/* ── Adjuntos ── */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
+              <Paperclip className="w-4 h-4" /> Archivos adjuntos
+            </label>
+
+            {task?.id && (
+              loadingAttachments ? (
+                <p className="text-xs text-gray-400">Cargando adjuntos...</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {attachments.map((att) => (
+                    <div key={att.id} className="flex items-center gap-3 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700">
+                      {isImage(att.mimeType) ? (
+                        <a href={`${SERVER_BASE_URL}${att.fileUrl}`} target="_blank" rel="noopener noreferrer" className="flex-shrink-0">
+                          <img
+                            src={`${SERVER_BASE_URL}${att.fileUrl}`}
+                            alt={att.fileName}
+                            className="w-12 h-12 object-cover rounded-md border border-gray-200 dark:border-gray-600 hover:opacity-80 transition-opacity"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-12 h-12 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 flex-shrink-0">
+                          <Paperclip className="w-5 h-5 text-gray-400" />
+                        </div>
+                      )}
+                      <a
+                        href={`${SERVER_BASE_URL}${att.fileUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-blue-600 hover:underline truncate flex-1"
+                      >
+                        {att.fileName}
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          await dbService.deleteAttachment(att.id);
+                          setAttachments((prev) => prev.filter((a) => a.id !== att.id));
+                        }}
+                        className="text-gray-400 hover:text-red-500 flex-shrink-0"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
+
+            {pendingFiles.length > 0 && (
+              <div className="flex flex-col gap-1">
+                {pendingFiles.map((f, i) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-blue-100 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-800 text-sm">
+                    <span className="text-blue-700 dark:text-blue-300 truncate">{f.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                      className="ml-2 text-blue-400 hover:text-red-500 flex-shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {task?.id ? (
+              <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-dashed border-gray-300 dark:border-gray-600 text-sm text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-500 transition-colors">
+                <Paperclip className="w-4 h-4" />
+                Adjuntar archivo (máx. 10 MB)
+                <input
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) setPendingFiles((prev) => [...prev, file]);
+                    e.target.value = '';
+                  }}
+                />
+              </label>
+            ) : (
+              <p className="text-xs text-gray-400 italic">
+                Guarda la tarea primero para poder adjuntar archivos.
+              </p>
+            )}
+          </div>
+
+          {/* ── Comentarios ── */}
+          {task?.id && (
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 flex items-center gap-2">
+                <MessageSquare className="w-4 h-4" /> Comentarios
+              </label>
+
+              {loadingComments ? (
+                <p className="text-xs text-gray-400">Cargando comentarios...</p>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  {comments.length === 0 && (
+                    <p className="text-xs text-gray-400">Sin comentarios aún.</p>
+                  )}
+                  {comments.map((c) => (
+                    <div key={c.id} className="flex gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-xs font-bold text-blue-700 dark:text-blue-300 flex-shrink-0 overflow-hidden">
+                        {c.userAvatar
+                          ? <img src={c.userAvatar} alt={c.userName} className="w-8 h-8 object-cover" />
+                          : c.userName?.substring(0, 2).toUpperCase()
+                        }
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-200">{c.userName}</span>
+                          <span className="text-xs text-gray-400">
+                            {new Date(c.createdAt).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {c.isEdited && <span className="text-xs text-gray-400 italic">(editado)</span>}
+                        </div>
+
+                        {editingCommentId === c.id ? (
+                          <div className="flex gap-2">
+                            <textarea
+                              className="flex-1 px-2 py-1 text-sm border border-gray-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                              rows={2}
+                              value={editingContent}
+                              onChange={(e) => setEditingContent(e.target.value)}
+                            />
+                            <div className="flex flex-col gap-1">
+                              <Button type="button" className="text-xs py-1 h-auto" onClick={() => handleUpdateComment(c.id)}>
+                                Guardar
+                              </Button>
+                              <Button type="button" variant="ghost" className="text-xs py-1 h-auto" onClick={() => setEditingCommentId(null)}>
+                                Cancelar
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="text-sm text-gray-700 dark:text-gray-200 whitespace-pre-wrap break-words">{c.content}</p>
+                        )}
+
+                        {auth.currentUser?.uid === c.userId && editingCommentId !== c.id && (
+                          <div className="flex gap-2 mt-1">
+                            <button
+                              type="button"
+                              onClick={() => { setEditingCommentId(c.id); setEditingContent(c.content); }}
+                              className="text-xs text-gray-400 hover:text-blue-500"
+                            >
+                              Editar
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteComment(c.id)}
+                              className="text-xs text-gray-400 hover:text-red-500"
+                            >
+                              Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="flex gap-2 mt-2">
+                <textarea
+                  className="flex-1 px-3 py-2 text-sm border border-gray-200 dark:border-gray-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                  rows={2}
+                  placeholder="Escribe un comentario..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) handleAddComment();
+                  }}
+                />
+                <button
+                  type="button"
+                  onClick={handleAddComment}
+                  disabled={!newComment.trim() || submittingComment}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 self-end"
+                >
+                  <Send className="w-4 h-4" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">Ctrl+Enter para enviar</p>
+            </div>
+          )}
         </form>
 
         <div className="p-4 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 flex justify-between gap-3">
