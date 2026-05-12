@@ -5,7 +5,7 @@ using TaskEntity = TaskFlow_API.Models.Task;
 namespace TaskFlow_API.Patterns.Prototype;
 
 /// <summary>
-/// Interfaz para el patrón Prototype
+/// Interfaz para el patrï¿½n Prototype
 /// </summary>
 public interface IPrototype
 {
@@ -13,13 +13,13 @@ public interface IPrototype
 }
 
 /// <summary>
-/// Implementación avanzada del patrón Prototype para Task
+/// Implementaciï¿½n avanzada del patrï¿½n Prototype para Task
 /// Proporciona clonado profundo (Deep Copy) simulando RF-02.5
 /// </summary>
 public class TaskPrototype : TaskEntity, IPrototype
 {
     /// <summary>
-    /// Realiza un clonado profundo mediante serialización JSON
+    /// Realiza un clonado profundo mediante serializaciï¿½n JSON
     /// Garantiza que todos los tipos de datos se clonan completamente,
     /// incluyendo colecciones y objetos anidados
     /// </summary>
@@ -54,7 +54,7 @@ public class TaskPrototype : TaskEntity, IPrototype
 				Assignments = this.Assignments?.Select(a => new TaskAssignment
 				{
 					UserId = a.UserId,
-					TaskId = Guid.Empty, // Se asignará al guardar la nueva tarea
+					TaskId = Guid.Empty, // Se asignarï¿½ al guardar la nueva tarea
 					AssignedAt = DateTime.UtcNow
 				}).ToList() ?? new List<TaskAssignment>(),
 				CreatedAt = DateTime.UtcNow,
@@ -69,7 +69,7 @@ public class TaskPrototype : TaskEntity, IPrototype
 }
 
 /// <summary>
-/// Implementación avanzada del patrón Prototype para Project
+/// Implementaciï¿½n avanzada del patrï¿½n Prototype para Project
 /// Proporciona clonado profundo (Deep Copy) simulando RF-04.8
 /// </summary>
 public class ProjectPrototype : Project, IPrototype
@@ -134,7 +134,23 @@ public class PrototypeManager
     /// </summary>
     public static TaskEntity CloneTask(TaskEntity originalTask)
     {
-        return (TaskEntity)originalTask.Clone();
+        var prototype = new TaskPrototype
+        {
+            Id = originalTask.Id,
+            Title = originalTask.Title,
+            Description = originalTask.Description,
+            TypeId = originalTask.TypeId,
+            StatusId = originalTask.StatusId,
+            PriorityId = originalTask.PriorityId,
+            ColumnId = originalTask.ColumnId,
+            DueDate = originalTask.DueDate,
+            EstimatedHours = originalTask.EstimatedHours,
+            Tags = originalTask.Tags,
+            Assignments = originalTask.Assignments,
+            ParentTaskId = originalTask.ParentTaskId
+        };
+
+        return (TaskEntity)prototype.Clone();
     }
 
     /// <summary>
@@ -146,7 +162,7 @@ public class PrototypeManager
     }
 
     /// <summary>
-    /// Clona múltiples tareas
+    /// Clona mï¿½ltiples tareas
     /// </summary>
     public static List<TaskEntity> CloneTasks(List<TaskEntity> tasks)
     {

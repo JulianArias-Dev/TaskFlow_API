@@ -24,7 +24,6 @@ export class TaskPrototype implements IPrototype<Task> {
     cloned.id = `task-copy-${Date.now()}`;
     cloned.createdAt = now;
     cloned.updatedAt = now;
-    cloned.status = 'todo'; // Reiniciar al estado inicial
     cloned.title = `${cloned.title} (Copia)`;
 
     return cloned;

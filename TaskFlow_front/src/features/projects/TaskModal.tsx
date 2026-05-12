@@ -140,12 +140,6 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
     }
   };
 
-  // Al inicio del componente, antes del return:
-console.log('Task priority:', task?.priority, '→ toUpperCase:', task?.priority?.toUpperCase());
-console.log('Task type:', task?.type, '→ toUpperCase:', task?.type?.toUpperCase());
-console.log('taskPriorities catalog:', taskPriorities);
-console.log('taskTypes catalog:', taskTypes);
-
   return (
     <motion.div
       initial={{ opacity: 0 }}
