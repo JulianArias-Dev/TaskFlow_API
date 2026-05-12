@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Task, TaskLabel, BoardColumn, AttachmentItem, CommentItem } from '../../types/models';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { X, Tag, Copy, Paperclip, MessageSquare, Send } from 'lucide-react';
+import { X, Tag, Copy, Paperclip, MessageSquare, Send, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { dbService } from '../../services/databaseService';
 import { TaskFactory, TaskPrototype } from '../../lib/designPatterns';
@@ -45,6 +45,12 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
 
   const [members, setMembers] = useState<{ uid: string; email: string; displayName?: string }[]>([]);
 
+  // --- Subtareas ---
+  const [subTasks, setSubTasks] = useState<Task[]>([]);
+  const [showSubTaskInput, setShowSubTaskInput] = useState(false);
+  const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
+  const [subTaskProgress, setSubTaskProgress] = useState(0);
+
   // --- Adjuntos ---
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -86,6 +92,43 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       .catch(console.error)
       .finally(() => setLoadingComments(false));
   }, [task?.id]);
+
+  useEffect(() => {
+    if (task?.id) {
+      dbService.getSubTasks(task.id, projectId).then((subs) => {
+        setSubTasks(subs);
+        if (subs.length > 0) {
+          const done = subs.filter((s) => s.status?.toLowerCase().includes('done') || 
+            s.status?.toLowerCase().includes('completed') || 
+              s.status?.toLowerCase().includes('hecho')).length;
+          setSubTaskProgress(Math.round((done / subs.length) * 100));
+        }
+      });
+    }
+  }, [task?.id]);
+
+  const handleAddSubTask = async () => {
+    if (!newSubTaskTitle.trim() || !task?.id) return;
+    try {
+      await dbService.createTask(projectId, {
+        boardId,
+        status: currentStatus,
+        title: newSubTaskTitle.trim(),
+        description: '',
+        priority: 'MEDIUM',
+        type: 'TASK',
+        assigneeIds: [],
+        parentTaskId: task.id,
+      }as any);
+      const st = await dbService.getSubTasks(task.id, projectId);
+      setSubTasks(st);
+      setNewSubTaskTitle('');
+      setShowSubTaskInput(false);
+    } catch (error) {
+      console.error(error);
+      alert('Error al crear la subtarea');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -149,6 +192,8 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         createdAt: task?.createdAt || now,
         updatedAt: now,
         fileCount: 0,
+        parentTaskId: null,
+        subTaskCount: 0,
       };
 
       const prototype = new TaskPrototype(sourceData);
@@ -589,6 +634,53 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
                 </button>
               </div>
               <p className="text-xs text-gray-400">Ctrl+Enter para enviar</p>
+            </div>
+          )}
+
+          {/* ── Subtareas ── */}
+          {task && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
+                  Subtareas {subTasks.length > 0 && `(${subTaskProgress}% completado)`}
+                </label>
+                <Button type="button" variant="outline" className="text-sm py-1 h-auto"
+                  onClick={() => setShowSubTaskInput(true)}>
+                  <Plus className="w-4 h-4 mr-1" /> Añadir
+                </Button>
+              </div>
+
+              {subTasks.length > 0 && (
+                <div className="w-full bg-gray-200 rounded-full h-1.5">
+                  <div className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${subTaskProgress}%` }} />
+                </div>
+              )}
+
+              <div className="space-y-1">
+                {subTasks.map((st) => (
+                  <div key={st.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm">
+                    <span className="flex-1 text-gray-700 dark:text-gray-200">{st.title}</span>
+                    <span className="text-xs text-gray-400">{st.type}</span>
+                  </div>
+                ))}
+              </div>
+
+              {showSubTaskInput && (
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Título de la subtarea..."
+                    value={newSubTaskTitle}
+                    onChange={(e) => setNewSubTaskTitle(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
+                    autoFocus
+                  />
+                  <Button type="button" className="text-sm" onClick={handleAddSubTask}>Añadir</Button>
+                  <Button type="button" variant="ghost" className="text-sm"
+                    onClick={() => setShowSubTaskInput(false)}>Cancelar</Button>
+                </div>
+              )}
             </div>
           )}
         </form>

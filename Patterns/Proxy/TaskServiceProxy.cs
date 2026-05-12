@@ -156,6 +156,7 @@ public class TaskServiceProxy : ITaskService
     public System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetOverdueTasksAsync() => _real.GetOverdueTasksAsync();
     public System.Threading.Tasks.Task<int> GetTaskCountByProjectAsync(Guid projectId) => _real.GetTaskCountByProjectAsync(projectId);
     public System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int status) => _real.GetTaskCountByStatusAsync(status);
+    public System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetSubTasksAsync(Guid parentTaskId) => _real.GetSubTasksAsync(parentTaskId);
 
     // -------- Helpers de validación --------
 

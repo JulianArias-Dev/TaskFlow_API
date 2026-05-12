@@ -129,6 +129,8 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     createdAt: t.createdAt,
     updatedAt: t.updatedAt,
     fileCount: t.fileCount ?? 0,
+    parentTaskId: t.parentTaskId ?? null,
+    subTaskCount: t.subTaskCount ?? 0,
   };
 }
 
@@ -398,12 +400,28 @@ export class DatabaseService {
    */
   async createTask(
     projectId: string,
-    taskData: Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt'>,
+    taskData: Omit<Task, 'id' | 'projectId' | 'createdAt' | 'updatedAt'> & { parentTaskId?: string | null },
   ): Promise<string> {
     this.requireUser();
 
     const types = await this.catalog.getTaskTypes();
     const typeId = await this.catalog.findId(types, this.normalizeType(taskData.type || 'Task'), 5);
+
+    if (taskData.parentTaskId) {
+      // Si se especificó parentTaskId, el endpoint de creación es diferente y no aplica Factory Method.
+      const payload: CreateTaskRequest = {
+        title: taskData.title,
+        description: taskData.description ?? '',
+        typeId,
+        statusId: 1, // statusId por defecto (To Do) — el frontend lo interpreta como columnId al mapear.
+        priorityId: 2, // priorityId por defecto
+        columnId: taskData.status,
+        parentTaskId: taskData.parentTaskId,
+        tags: taskData.labels?.map((l) => `${l.name}|${l.color}`),
+      };
+      const created = await api.post<TaskApi>('/Tasks', payload);
+      return created.id;
+    }
 
     // 1) Factory Method — crea la tarea con defaults del tipo.
     const created = await api.post<TaskApi>(
@@ -512,6 +530,11 @@ export class DatabaseService {
       'TASK': 'Task',
     };
     return map[type?.toUpperCase()] ?? type;
+  }
+
+  async getSubTasks(parentTaskId: string, projectId: string): Promise<Task[]> {
+  const tasks = await api.get<TaskApi[]>(`/Tasks/${parentTaskId}/subtasks`).catch(() => []);
+  return (tasks ?? []).map((t) => mapTask(t, projectId, ''));
   }
 
   // ============================ ADJUNTOS ============================

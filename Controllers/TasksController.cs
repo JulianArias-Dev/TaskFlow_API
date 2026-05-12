@@ -284,4 +284,21 @@ public class TasksController : ControllerBase
             return BadRequest(ResponseDto.ErrorResponse(ex.Message, new List<string> { ex.Message }));
         }
     }
+
+    /// <summary>
+    /// Obtiene las subtareas de una tarea padre
+    /// </summary>
+    [HttpGet("{parentTaskId}/subtasks")]
+    [ProducesResponseType(typeof(ResponseDto<List<TaskDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ResponseDto), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ResponseDto<List<TaskDto>>>> GetSubTasks(Guid parentTaskId)
+    {
+        var subTasks = await _taskService.GetSubTasksAsync(parentTaskId);
+        if (subTasks == null || !subTasks.Any())
+        {
+            _logger.LogWarning("No subtasks found for parent task ID {ParentTaskId}", parentTaskId);
+            return NotFound(ResponseDto.NotFoundResponse($"No subtasks found for parent task ID {parentTaskId}"));
+        }
+        return Ok(ResponseDto<List<TaskDto>>.SuccessResponse(subTasks.ToList(), "Subtasks retrieved successfully"));
+    }
 }

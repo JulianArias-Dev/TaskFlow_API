@@ -207,6 +207,7 @@ export interface CreateTaskRequest {
   title: string;
   description?: string;
   typeId: number;
+  statusId: number;
   columnId: string;
   priorityId: number;
   assignedToUserId?: string | null;

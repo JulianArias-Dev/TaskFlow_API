@@ -30,6 +30,7 @@ public interface ITaskService
     System.Threading.Tasks.Task<TaskDto?> CloneTaskAsync(Guid taskId);
     System.Threading.Tasks.Task<int> GetTaskCountByProjectAsync(Guid projectId);
     System.Threading.Tasks.Task<int> GetTaskCountByStatusAsync(int status);
+	System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetSubTasksAsync(Guid parentTaskId);
 }
 
 /// <summary>
@@ -336,6 +337,12 @@ public class TaskService : ITaskService
 		}
 
 		return await _unitOfWork.Tasks.GetTaskCountByStatusAsync(statusId);
+	}
+
+	public async System.Threading.Tasks.Task<IEnumerable<TaskDto>> GetSubTasksAsync(Guid parentTaskId)
+	{
+		var subTasks = await _unitOfWork.Tasks.GetSubTasksAsync(parentTaskId);
+		return subTasks.Select(MapToDto).ToList();
 	}
 
 	private TaskDto MapToDto(TaskEntity task)

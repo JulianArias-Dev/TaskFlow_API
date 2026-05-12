@@ -75,6 +75,8 @@ export interface Task {
   createdAt: string;
   updatedAt: string;
   fileCount: number;
+  parentTaskId?: string | null;
+  subTaskCount: number;
 }
 
 export interface AppNotification {
