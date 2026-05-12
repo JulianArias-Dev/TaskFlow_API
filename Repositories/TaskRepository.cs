@@ -44,6 +44,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	public async Task<TaskEntity?> GetTaskWithAssignmentsAsync(Guid id)
 	{
 		return await _dbSet
+			.Include(t => t.Type)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
 			.Include(t => t.Assignments) 
 			.FirstOrDefaultAsync(t => t.Id == id);
 	}
@@ -51,6 +54,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByProjectAsync(Guid projectId)
 	{
 		return await _dbSet
+			.Include(t => t.Type)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
 			.Include(t => t.Column)
 				.ThenInclude(c => c!.Board)
 			.Include(t => t.Assignments)
@@ -93,6 +99,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetTasksByAssigneeAsync(Guid userId)
     {
         return await _dbSet
+			.Include(t => t.Type)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
             .Include(t => t.Column)
 			.Where(t => t.Assignments.Any(a => a.UserId == userId))
 			.OrderBy(t => t.DueDate)
@@ -126,7 +135,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 
 		return await _dbSet
 			.Include(t => t.Assignments).ThenInclude(a => a.User)
+			.Include(t => t.Type)
 			.Include(t => t.Status)
+			.Include(t => t.Priority)
 			.Where(t => t.DueDate < now && t.StatusId != doneStatusId) // ✅ Comparación por ID
 			.OrderBy(t => t.DueDate)
 			.ToListAsync();
@@ -135,6 +146,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 	public async System.Threading.Tasks.Task<IEnumerable<TaskEntity>> GetSubTasksAsync(Guid parentTaskId)
     {
         return await _dbSet
+			.Include(t => t.Type)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
             .Where(t => t.ParentTaskId == parentTaskId)
             .OrderBy(t => t.Priority)
             .ToListAsync();
@@ -198,6 +212,9 @@ public class TaskRepository : Repository<TaskEntity>, ITaskRepository
 		var lowerSearchTerm = searchTerm.ToLower();
 
 		return await _dbSet
+			.Include(t => t.Type)
+			.Include(t => t.Status)
+			.Include(t => t.Priority)
 			.Include(t => t.Column)
 				.ThenInclude(c => c!.Board)
 			.Include(t => t.Assignments) 

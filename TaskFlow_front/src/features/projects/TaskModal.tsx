@@ -27,9 +27,9 @@ interface TaskModalProps {
 export function TaskModal({ task, projectId, boardId, columns, statusId, onClose, onSave, onClone }: TaskModalProps) {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [priority, setPriority] = useState<Task['priority']>(task?.priority || 'MEDIA');
-  const [type, setType] = useState<Task['type']>(task?.type || 'TASK');
-  const [dueDate, setDueDate] = useState(task?.dueDate || '');
+  const [priority, setPriority] = useState<Task['priority']>(task?.priority || 'MEDIUM');
+  const [type, setType] = useState<Task['type']>(task?.type?.toUpperCase() || 'TASK');
+  const [dueDate, setDueDate] = useState(task?.dueDate ? task?.dueDate.split('T')[0] : '');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimatedHours?.toString() || '');
   const [loggedHours, setLoggedHours] = useState(task?.loggedHours?.toString() || '');
   const [labels, setLabels] = useState<TaskLabel[]>(task?.labels || []);
@@ -139,6 +139,12 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       setAssigneeIds([...assigneeIds, uid]);
     }
   };
+
+  // Al inicio del componente, antes del return:
+console.log('Task priority:', task?.priority, '→ toUpperCase:', task?.priority?.toUpperCase());
+console.log('Task type:', task?.type, '→ toUpperCase:', task?.type?.toUpperCase());
+console.log('taskPriorities catalog:', taskPriorities);
+console.log('taskTypes catalog:', taskTypes);
 
   return (
     <motion.div

@@ -116,7 +116,7 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     // El componente de UI debe ser tolerante a estos valores.
     priority: t.priority ?? 'MEDIUM',
     type: t.type ?? 'Task',
-    dueDate: t.dueDate ?? null,
+    dueDate: t.dueDate ? t.dueDate!.split('T')[0] : null, // El backend devuelve ISO string; el frontend espera solo la fecha (YYYY-MM-DD).
     estimatedHours: t.estimatedHours,
     loggedHours: t.actualHours,
     assigneeIds: t.assignedUserIds ?? [],
@@ -397,7 +397,7 @@ export class DatabaseService {
     this.requireUser();
 
     const types = await this.catalog.getTaskTypes();
-    const typeId = await this.catalog.findId(types, taskData.type || 'Task', 5);
+    const typeId = await this.catalog.findId(types, this.normalizeType(taskData.type || 'Task'), 5);
 
     // 1) Factory Method — crea la tarea con defaults del tipo.
     const created = await api.post<TaskApi>(
@@ -458,11 +458,11 @@ export class DatabaseService {
 
     if (updates.priority) {
       const priorities = await this.catalog.getTaskPriorities();
-      payload.priorityId = await this.catalog.findId(priorities, updates.priority, 2);
+      payload.priorityId = await this.catalog.findId(priorities, this.normalizePriority(updates.priority), 2);
     }
     if (updates.type) {
       const types = await this.catalog.getTaskTypes();
-      payload.typeId = await this.catalog.findId(types, updates.type, 1);
+      payload.typeId = await this.catalog.findId(types, this.normalizeType(updates.type), 5);
     }
     if (updates.status) {
       const statuses = await this.catalog.getTaskStatuses();
@@ -485,6 +485,27 @@ export class DatabaseService {
     _details?: string,
   ): Promise<void> {
     // No-op: el backend registra los AuditLog automáticamente desde sus services.
+  }
+
+  private normalizePriority(priority: string): string {
+  const map: Record<string, string> = {
+    'BAJA': 'LOW',
+    'MEDIA': 'MEDIUM',
+    'ALTA': 'HIGH',
+    'URGENTE': 'CRITICAL',
+  };
+  return map[priority?.toUpperCase()] ?? priority;
+  }
+
+  private normalizeType(type: string): string {
+    const map: Record<string, string> = {
+      'FEATURE': 'Feature',
+      'BUG': 'Bug',
+      'IMPROVEMENT': 'Improvement',
+      'RESEARCH': 'Research',
+      'TASK': 'Task',
+    };
+    return map[type?.toUpperCase()] ?? type;
   }
 
   // ============================ NOTIFICACIONES ============================

@@ -19,8 +19,8 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
   const [activeTab, setActiveTab] = useState<'general' | 'members'>('general');
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || '');
-  const [startDate, setStartDate] = useState(project.startDate || '');
-  const [endDate, setEndDate] = useState(project.endDate || '');
+  const [startDate, setStartDate] = useState(project.startDate ? project.startDate.split('T')[0] : '');
+  const [endDate, setEndDate] = useState(project.endDate ? project.endDate.split('T')[0] : '');
   const [status, setStatus] = useState(project.status);
   const [saving, setSaving] = useState(false);
   
