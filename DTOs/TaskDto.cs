@@ -8,21 +8,21 @@ namespace TaskFlow_API.DTOs;
 /// </summary>
 public class CreateTaskDto
 {
-	[Required(ErrorMessage = "El título es requerido")]
-	[StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
+	[Required(ErrorMessage = "El tï¿½tulo es requerido")]
+	[StringLength(255, MinimumLength = 3, ErrorMessage = "El tï¿½tulo debe tener entre 3 y 255 caracteres")]
 	public string Title { get; set; } = string.Empty;
 
-	[StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
+	[StringLength(2000, ErrorMessage = "La descripciï¿½n no puede exceder 2000 caracteres")]
 	public string? Description { get; set; }
 
 	[Required(ErrorMessage = "El ID del tipo de tarea es requerido")]
-	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea inválido")]
+	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea invï¿½lido")]
 	public int TypeId { get; set; } = 1; // Default a ID de 'TASK'
 
 	[Required(ErrorMessage = "El ID de la columna es requerido")]
 	public Guid ColumnId { get; set; }
 
-	[Range(1, int.MaxValue, ErrorMessage = "Prioridad inválida")]
+	[Range(1, int.MaxValue, ErrorMessage = "Prioridad invï¿½lida")]
 	public int PriorityId { get; set; } = 2; // Default a ID de 'MEDIUM'
 
 	public Guid? AssignedToUserId { get; set; }
@@ -43,20 +43,22 @@ public class CreateTaskDto
 /// </summary>
 public class UpdateTaskDto
 {
-	[StringLength(255, MinimumLength = 3, ErrorMessage = "El título debe tener entre 3 y 255 caracteres")]
+	[StringLength(255, MinimumLength = 3, ErrorMessage = "El tï¿½tulo debe tener entre 3 y 255 caracteres")]
 	public string? Title { get; set; }
 
-	[StringLength(2000, ErrorMessage = "La descripción no puede exceder 2000 caracteres")]
+	[StringLength(2000, ErrorMessage = "La descripciï¿½n no puede exceder 2000 caracteres")]
 	public string? Description { get; set; }
 
-	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea inválido")]
+	[Range(1, int.MaxValue, ErrorMessage = "Tipo de tarea invï¿½lido")]
 	public int? TypeId { get; set; }
 
-	[Range(1, int.MaxValue, ErrorMessage = "Estado inválido")]
+	[Range(1, int.MaxValue, ErrorMessage = "Estado invï¿½lido")]
 	public int? StatusId { get; set; }
 
-	[Range(1, int.MaxValue, ErrorMessage = "Prioridad inválida")]
+	[Range(1, int.MaxValue, ErrorMessage = "Prioridad invï¿½lida")]
 	public int? PriorityId { get; set; }
+
+	public Guid? ColumnId { get; set; }
 
 	public List<Guid>? AssignedUserIds { get; set; }
 

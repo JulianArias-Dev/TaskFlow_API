@@ -61,8 +61,9 @@ export class TaskManagerProxy implements ITaskManager {
     const userId = auth.currentUser?.uid || 'anon';
     this.logActivity('UPDATE', taskId, userId);
     
-    if (updates.status && !updates.status.startsWith('col_')) {
-      console.warn(`[Proxy-Validation] Advertencia: El estado ${updates.status} no parece ser un id de columna válido.`);
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (updates.status && !isGuid.test(updates.status)) {
+      console.warn(`[Proxy-Validation] Advertencia: El estado ${updates.status} no parece ser un columnId válido.`);
     }
 
     return await this.realManager.updateTask(projectId, taskId, updates);

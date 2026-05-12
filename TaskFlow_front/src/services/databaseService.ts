@@ -478,6 +478,7 @@ export class DatabaseService {
       actualHours: updates.loggedHours ?? undefined,
       assignedUserIds: updates.assigneeIds,
       tags: updates.labels?.map((l) => `${l.name}|${l.color}`),
+      columnId: updates.status, // status del frontend = columnId del backend
     };
 
     if (updates.priority) {
@@ -533,8 +534,8 @@ export class DatabaseService {
   }
 
   async getSubTasks(parentTaskId: string, projectId: string): Promise<Task[]> {
-  const tasks = await api.get<TaskApi[]>(`/Tasks/${parentTaskId}/subtasks`).catch(() => []);
-  return (tasks ?? []).map((t) => mapTask(t, projectId, ''));
+    const tasks = await api.get<TaskApi[]>(`/Tasks/${parentTaskId}/subtasks`).catch(() => [] as TaskApi[]);
+    return (tasks ?? []).map((t) => mapTask(t, projectId, ''));
   }
 
   // ============================ ADJUNTOS ============================

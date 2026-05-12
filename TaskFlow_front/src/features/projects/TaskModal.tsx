@@ -98,14 +98,13 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       dbService.getSubTasks(task.id, projectId).then((subs) => {
         setSubTasks(subs);
         if (subs.length > 0) {
-          const done = subs.filter((s) => s.status?.toLowerCase().includes('done') || 
-            s.status?.toLowerCase().includes('completed') || 
-              s.status?.toLowerCase().includes('hecho')).length;
+          const doneColumnIds = columns.filter(c => c.name.toLowerCase() === 'done' || c.name.toLowerCase() === 'finalizado').map(c => c.id);
+          const done = subs.filter(st => doneColumnIds.includes(st.status)).length;
           setSubTaskProgress(Math.round((done / subs.length) * 100));
         }
       });
     }
-  }, [task?.id]);
+  }, [task?.id, columns]);
 
   const handleAddSubTask = async () => {
     if (!newSubTaskTitle.trim() || !task?.id) return;

@@ -223,6 +223,7 @@ export interface UpdateTaskRequest {
   typeId?: number;
   statusId?: number;
   priorityId?: number;
+  columnId?: string;
   assignedUserIds?: string[];
   dueDate?: string | null;
   estimatedHours?: number;

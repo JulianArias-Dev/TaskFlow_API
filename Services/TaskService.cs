@@ -257,6 +257,9 @@ public class TaskService : ITaskService
         if (updateTaskDto.Tags != null)
             task.Tags = updateTaskDto.Tags;
 
+		if (updateTaskDto.ColumnId.HasValue && updateTaskDto.ColumnId.Value != Guid.Empty)
+			task.ColumnId = updateTaskDto.ColumnId.Value;
+			
 		//if (updateTaskDto.newColumn != null && updateTaskDto.newColumn.Value != task.ColumnId)
 		//{
 		//	// Verificar que la nueva columna pertenezca al mismo Tablero/Proyecto
