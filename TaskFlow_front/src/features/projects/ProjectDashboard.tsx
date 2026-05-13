@@ -25,10 +25,10 @@ export function ProjectDashboard({ project, tasks, columns }: ProjectDashboardPr
     })).filter(d => d.value > 0);
 
     // 2. Tasks by Priority
-    const priorities = ['BAJA', 'MEDIA', 'ALTA', 'URGENTE'];
+    const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
     const priorityData = priorities.map(p => ({
       name: p,
-      value: tasks.filter(t => t.priority === p).length
+      value: tasks.filter(t => t.priority?.toUpperCase() === p).length
     }));
 
     // 3. Tasks by Assignee
@@ -46,7 +46,7 @@ export function ProjectDashboard({ project, tasks, columns }: ProjectDashboardPr
     // 4. Overdue Tasks
     const now = new Date().setHours(0,0,0,0);
     const doneColIds = columns
-      .filter(c => c.name.toLowerCase().includes('hecho') || c.name.toLowerCase().includes('completad') || c.name.toLowerCase().includes('done'))
+      .filter(c => c.name.toLowerCase().includes('hecho') || c.name.toLowerCase().includes('finalizado') || c.name.toLowerCase().includes('done'))
       .map(c => c.id);
     
     const overdueTasks = tasks.filter(t => 
