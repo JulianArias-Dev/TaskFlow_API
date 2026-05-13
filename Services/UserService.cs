@@ -17,6 +17,7 @@ public interface IUserService
     System.Threading.Tasks.Task<User?> GetUserByEmailAsync(string email);
     System.Threading.Tasks.Task<User> CreateUserAsync(string email, string name, string passwordHash, string? avatarUrl = "");
     System.Threading.Tasks.Task<User> UpdateUserAsync(Guid id, string name, string? avatarUrl);
+    System.Threading.Tasks.Task<User> UpdateUserAsync(Guid id, string name, string? avatarUrl, string? themePreference);
     System.Threading.Tasks.Task<bool> DeleteUserAsync(Guid id);
     System.Threading.Tasks.Task<bool> EmailExistsAsync(string email);
     System.Threading.Tasks.Task<IEnumerable<User>> GetUsersByProjectAsync(Guid projectId);
@@ -86,6 +87,11 @@ public class UserService : IUserService
 
     public async System.Threading.Tasks.Task<User> UpdateUserAsync(Guid id, string name, string? avatarUrl)
     {
+        return await UpdateUserAsync(id, name, avatarUrl, null);
+    }
+
+    public async System.Threading.Tasks.Task<User> UpdateUserAsync(Guid id, string name, string? avatarUrl, string? themePreference)
+    {
         var user = await _unitOfWork.Users.GetByIdAsync(id);
         if (user == null)
         {
@@ -94,6 +100,10 @@ public class UserService : IUserService
 
         user.Name = name;
         user.AvatarUrl = avatarUrl ?? "";
+        if (themePreference != null && Enum.TryParse<ThemePreference>(themePreference, true, out var theme))
+        {
+            user.ThemePreference = theme;
+        }
         user.UpdatedAt = DateTime.UtcNow;
 
         await _unitOfWork.Users.UpdateAsync(user);

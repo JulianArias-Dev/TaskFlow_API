@@ -89,6 +89,7 @@ export interface UserApi {
   name: string;
   role: string;
   avatarUrl?: string | null;
+  themePreference: string;
   createdAt: string;
   updatedAt: string;
   lastLoginAt?: string | null;

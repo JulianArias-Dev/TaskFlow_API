@@ -46,6 +46,9 @@ public class UpdateUserDto
 
     [RegexAttribute(@"^(Admin|Manager|Developer|Viewer)$", ErrorMessage = "Rol de usuario inválido")]
     public string? Role { get; set; }
+
+    /// <summary>Preferencia de tema visual (Light, Dark, System)</summary>
+    public string? ThemePreference { get; set; }
 }
 
 /// <summary>
@@ -86,6 +89,7 @@ public class UserDto
     public string Name { get; set; } = string.Empty;
     public string Role { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
+    public string ThemePreference { get; set; } = "Light";
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
     public DateTime? LastLoginAt { get; set; }

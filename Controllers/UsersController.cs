@@ -208,7 +208,7 @@ public class UsersController : ControllerBase
 
         try
         {
-            var updated = await _userService.UpdateUserAsync(id, dto.Name!, dto.AvatarUrl);
+            var updated = await _userService.UpdateUserAsync(id, dto.Name!, dto.AvatarUrl, dto.ThemePreference);
             return Ok(updated);
         }
         catch (KeyNotFoundException ex)

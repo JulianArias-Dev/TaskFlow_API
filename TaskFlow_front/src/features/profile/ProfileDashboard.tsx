@@ -27,7 +27,7 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
   const [editPhoto, setEditPhoto] = useState('');
-  const [editTheme, setEditTheme] = useState<'light' | 'dark'>('light');
+  const [editTheme, setEditTheme] = useState<'light' | 'dark' | 'system'>('light');
   
   const [notificationPrefs, setNotificationPrefs] = useState<Record<string, { inApp: boolean; email: boolean }>>({
     ASSIGNED: { inApp: true, email: true },
@@ -43,11 +43,14 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
   }, [user.uid]);
 
   useEffect(() => {
-    if (profile?.theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
+    const applyTheme = (theme: string) => {
+      if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    };
+    applyTheme(profile?.theme || 'light');
   }, [profile?.theme]);
 
   const loadProfile = async () => {
@@ -71,7 +74,7 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
           updatedAt: data.updatedAt,
           lastLoginAt: data.lastLoginAt,
           description: '',
-          theme: 'light' as const,
+          theme: (data.themePreference?.toLowerCase() as 'light' | 'dark' | 'system') || 'light',
         }
       : null;
     setProfile(profileShape);
@@ -150,9 +153,8 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await authService.updateUserProfile(editName, editDesc, editPhoto);
+      await authService.updateUserProfile(editName, editDesc, editPhoto, editTheme);
       await authService.updateNotificationPreferences(notificationPrefs);
-      await authService.updateUserTheme(editTheme);
       await loadProfile();
       setIsEditing(false);
     } catch (e) {
@@ -472,6 +474,17 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
                               className="w-4 h-4 text-blue-600"
                             />
                             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Oscuro</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer p-3 border border-gray-200 dark:border-gray-700 rounded-lg flex-1 hover:bg-gray-50 dark:bg-gray-800 dark:bg-gray-900">
+                            <input 
+                              type="radio" 
+                              name="theme" 
+                              value="system"
+                              checked={editTheme === 'system'}
+                              onChange={() => setEditTheme('system')}
+                              className="w-4 h-4 text-blue-600"
+                            />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Sistema</span>
                           </label>
                         </div>
                       </div>

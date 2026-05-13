@@ -77,6 +77,7 @@ public class MappingProfile : Profile
 		// 1. Mapeo para UserDto
 		CreateMap<User, UserDto>()
 			.ForMember(dest => dest.Role, opt => opt.MapFrom(src => src.AppRole != null ? src.AppRole.Name : "User"))
+			.ForMember(dest => dest.ThemePreference, opt => opt.MapFrom(src => src.ThemePreference.ToString()))
 			.ForMember(dest => dest.ProjectCount, opt => opt.MapFrom(src => src.ProjectMemberships.Count))
 			.ForMember(dest => dest.TaskCount, opt => opt.MapFrom(src => src.Assignments.Count));
 

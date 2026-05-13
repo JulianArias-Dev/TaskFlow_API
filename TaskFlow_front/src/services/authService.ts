@@ -107,32 +107,22 @@ export const authService = {
   },
 
   /**
-   * Actualiza el perfil del usuario actual (nombre y avatar).
+   * Actualiza el perfil del usuario actual (nombre, avatar y tema).
    * Usa PUT /api/Users/{id}/profile (body JSON) — soporta avatarUrl largos
    * como data URLs, a diferencia del PUT clásico con query params.
    */
-  async updateUserProfile(displayName: string, _description?: string, photoURL?: string): Promise<void> {
+  async updateUserProfile(displayName: string, _description?: string, photoURL?: string, themePreference?: string): Promise<void> {
     if (!auth.currentUser) throw new Error('No autenticado');
     const id = auth.currentUser.uid;
     const updated = await api.put<UserApi>(
       `/Users/${id}/profile`,
-      { name: displayName, avatarUrl: photoURL ?? null },
+      { name: displayName, avatarUrl: photoURL ?? null, themePreference },
       { unwrap: false },
     );
     auth._patchProfile({
       displayName: updated?.name ?? displayName,
       photoURL: updated?.avatarUrl ?? photoURL ?? null,
     });
-  },
-
-  /** Preferencias de tema — persisten contra /api/Themes (best-effort). */
-  async updateUserTheme(theme: 'light' | 'dark'): Promise<void> {
-    if (!auth.currentUser) throw new Error('No autenticado');
-    try {
-      await api.put(`/Themes/user/${auth.currentUser.uid}`, { themePreference: theme });
-    } catch (err) {
-      console.warn('[authService] No se pudo persistir el tema en el backend', err);
-    }
   },
 
   /**
