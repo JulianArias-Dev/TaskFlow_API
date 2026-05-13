@@ -154,11 +154,25 @@ export function ProjectDetailView({
 
   const handleCreateTask = (colId: string) => {
     if (!board || isArchived) return;
+
+    const blockedStatus = ['completed', 'completado', 'cancelled', 'archivado'];
+    if (blockedStatus.includes(project.status.toLowerCase())) {
+      alert('No se pueden crear tareas en un proyecto con estado ' + project.status);
+      return;
+    }
+
     setTaskModalState({ isOpen: true, columnId: colId });
   };
 
   const handleEditTask = (task: Task) => {
     if (!board || isArchived) return;
+
+    const blockedStatus = ['completed', 'completado', 'cancelled', 'archivado'];
+    if (blockedStatus.includes(project.status.toLowerCase())) {
+      alert('No se pueden editar tareas en un proyecto con estado ' + project.status);
+      return;
+    }
+
     setTaskModalState({ isOpen: true, task, columnId: task.status });
   };
 
@@ -308,7 +322,7 @@ export function ProjectDetailView({
       if (!filterCriteria.priorities.includes(task.priority)) return false;
     }
     if (filterCriteria.types.length > 0) {
-      if (!filterCriteria.types.includes(task.type)) return false;
+      if (!filterCriteria.types.includes(task.type?.toUpperCase())) return false;
     }
     if (filterCriteria.labels.length > 0) {
       const hasLabel = task.labels?.some(l => filterCriteria.labels.includes(l.name));

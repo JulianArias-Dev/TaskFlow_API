@@ -635,17 +635,17 @@ async deleteComment(commentId: string): Promise<void> {
   // ============================ SAVED FILTERS ============================
 
   async saveFilter(filter: Omit<SavedFilter, 'id' | 'createdAt' | 'userId'>): Promise<void> {
+    console.log('Saving filter', filter);
     await api.post('/SavedFilters', {
       projectId: filter.projectId,
       name: filter.name,
-      criteria: typeof filter.criteria === 'string' ? filter.criteria : JSON.stringify(filter.criteria),
+      filterCriteria: typeof filter.criteria === 'string' ? filter.criteria : JSON.stringify(filter.criteria),
     });
   }
 
   async getSavedFilters(projectId: string): Promise<SavedFilter[]> {
-    const user = this.requireUser();
     const filters = await api
-      .get<SavedFilterApi[]>(`/SavedFilters/user/${user.uid}`, { unwrap: false })
+      .get<SavedFilterApi[]>('/SavedFilters')
       .catch(() => [] as SavedFilterApi[]);
     return (filters ?? [])
       .filter((f) => f.projectId === projectId)

@@ -391,7 +391,8 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
                 initialTab={projectTab}
                 onBack={() => setSelectedProject(null)} 
                 onUpdate={() => {
-                   // Refresh logic if needed, or rely on live listeners if any
+                  setSelectedProject(null);
+                  setActiveTab('projects');
                 }}
               />
             ) : (
