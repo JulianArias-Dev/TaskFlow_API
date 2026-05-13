@@ -3,6 +3,7 @@ using TaskFlow_API.Models;
 using TaskFlow_API.Repositories;
 using TaskFlow_API.Patterns.Builder;
 using TaskFlow_API.Patterns.Prototype;
+using TaskFlow_API.Patterns.Adapter;
 
 namespace TaskFlow_API.Services;
 
@@ -182,12 +183,12 @@ public class ProjectService : IProjectService
 			await _unitOfWork.SaveChangesAsync();
 
 			string subject = $"Has sido invitado al proyecto: {project.Name}";
-			string content = $@"
-            <h3>�Hola, {user.Name}!</h3>
-            <p>Has sido agregado al proyecto <strong>{project.Name}</strong>.</p>
-            <p>Ya puedes empezar a colaborar con el equipo.</p>";
+			string greeting = $"¡Hola, {user.Name}!";
+			string message = $"Has sido agregado al proyecto {project.Name}.";
+			string closing = "Ya puedes empezar a colaborar con tu equipo.";
+			string content = NotificationContentFormatter.Build(greeting, message, closing);
 
-			await _notificationService.NotifyAsync(userId, subject, content);
+			await _notificationService.NotifyAsync(userId, "PROJECT_MEMBER_ADDED", subject, content);
 		}
 
 		return true;

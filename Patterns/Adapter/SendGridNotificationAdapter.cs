@@ -78,12 +78,8 @@ public class SendGridNotificationAdapter : INotificationAdapter
             _logger.LogWarning("SendGrid returned non-success status {Status}", statusCode);
     }
 
-    private static string WrapInTemplate(NotificationMessage message) =>
-        $"""
-        <div style="font-family:Arial,sans-serif">
-            <h3>{message.Subject}</h3>
-            <div>{message.Content}</div>
-            <p style="color:#888;font-size:12px">Sent via TaskFlow → SendGrid</p>
-        </div>
-        """;
+    private static string WrapInTemplate(NotificationMessage message)
+    {
+        return NotificationContentFormatter.FormatAsHtml(message.Content);
+    }
 }

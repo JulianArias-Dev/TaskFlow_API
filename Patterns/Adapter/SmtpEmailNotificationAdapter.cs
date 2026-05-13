@@ -9,6 +9,9 @@ namespace TaskFlow_API.Patterns.Adapter;
 /// Adapter (concreto) — SMTP/Gmail vía MailKit.
 /// Adapta `NotificationMessage` (formato neutro) al `MimeMessage` que MailKit espera.
 /// La app NO depende de MimeMessage — sólo de `INotificationAdapter`.
+///
+/// Este adapter es responsable de aplicar estilos HTML. Los servicios envían
+/// contenido plano; aquí lo transformamos en HTML formateado para email.
 /// </summary>
 public class SmtpEmailNotificationAdapter : INotificationAdapter
 {
@@ -41,7 +44,10 @@ public class SmtpEmailNotificationAdapter : INotificationAdapter
         mime.From.Add(MailboxAddress.Parse(_emailSettings.From));
         mime.To.Add(new MailboxAddress(string.Empty, message.ToEmail));
         mime.Subject = $"[{message.Priority}] {message.Subject}";
-        mime.Body = new TextPart("html") { Text = message.Content };
+
+        // Aplicar formato HTML al contenido
+        var htmlContent = NotificationContentFormatter.FormatAsHtml(message.Content);
+        mime.Body = new TextPart("html") { Text = htmlContent };
 
         // Headers extra desde Metadata (ej. X-TaskFlow-TaskId)
         foreach (var kvp in message.Metadata)
@@ -56,3 +62,4 @@ public class SmtpEmailNotificationAdapter : INotificationAdapter
         _logger.LogInformation("Email notification sent to {Email}", message.ToEmail);
     }
 }
+

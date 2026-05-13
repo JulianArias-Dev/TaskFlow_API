@@ -3,6 +3,7 @@ using TaskFlow_API.Models;
 using TaskFlow_API.Repositories;
 using TaskFlow_API.Patterns.Builder;
 using TaskFlow_API.Patterns.Factory;
+using TaskFlow_API.Patterns.Adapter;
 using TaskFlow_API.Patterns.Prototype;
 using TaskEntity = TaskFlow_API.Models.Task;
 using TaskStatus = TaskFlow_API.Models.TaskStatus;
@@ -150,11 +151,9 @@ public class TaskService : ITaskService
 			if (user != null)
 			{
 				string subject = "Nueva tarea asignada";
-				string content = $@"
-                <h3>Hola {user.Name},</h3>
-                <p>Se te ha asignado una nueva tarea en el tablero <strong>{board.Name}</strong>.</p>
-                <p><strong>Tarea:</strong> {task.Title}</p>
-                <p><strong>Prioridad:</strong> {task.Priority}</p>";
+				string greeting = $"Hola {user.Name},";
+				string message = $"Se te ha asignado una nueva tarea en el tablero {board.Name}.\n\nTarea: {task.Title}\nPrioridad: {task.Priority}";
+				string content = NotificationContentFormatter.Build(greeting, message);
 
 				await _notificationService.NotifyAsync(userId, "ASSIGNED", subject, content);
 			}
@@ -282,13 +281,28 @@ public class TaskService : ITaskService
 	private async System.Threading.Tasks.Task NotifyAssignmentChanges(TaskEntity task, List<Guid> news, List<Guid> removed, List<Guid> updated)
 	{
 		foreach (var uid in news)
-			await _notificationService.NotifyAsync(uid, "ASSIGNED", "Nueva asignación", $"Has sido asignado a la tarea: {task.Title}");
+		{
+			string content = NotificationContentFormatter.Build(
+				"Te han asignado una nueva tarea",
+				$"Tarea: {task.Title}");
+			await _notificationService.NotifyAsync(uid, "ASSIGNED", "Nueva asignación", content);
+		}
 
 		foreach (var uid in removed)
-			await _notificationService.NotifyAsync(uid, "ASSIGNED", "Asignación removida", $"Ya no eres responsable de la tarea: {task.Title}");
+		{
+			string content = NotificationContentFormatter.Build(
+				"Ya no eres responsable de una tarea",
+				$"Tarea: {task.Title}");
+			await _notificationService.NotifyAsync(uid, "ASSIGNED", "Asignación removida", content);
+		}
 
 		foreach (var uid in updated)
-			await _notificationService.NotifyAsync(uid, "STATUS_CHANGE", "Tarea actualizada", $"Se realizaron cambios en la tarea: {task.Title} en la que estás trabajando.");
+		{
+			string content = NotificationContentFormatter.Build(
+				"Se realizaron cambios en una tarea",
+				$"Tarea: {task.Title}");
+			await _notificationService.NotifyAsync(uid, "STATUS_CHANGE", "Tarea actualizada", content);
+		}
 	}
 
 	public async System.Threading.Tasks.Task<bool> DeleteTaskAsync(Guid id)
