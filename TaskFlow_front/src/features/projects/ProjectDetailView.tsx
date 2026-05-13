@@ -9,10 +9,9 @@ import { dbService } from '../../services/databaseService';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { TaskModal } from './TaskModal';
 import { ProjectDashboard } from './ProjectDashboard';
-import { Layout, BarChart2 } from 'lucide-react';
 
 import { TaskFilterBar, TaskFilterCriteria } from './TaskFilterBar';
-import { TaskManagerProxy } from '../../lib/designPatterns';
+import { TaskManagerProxy, TagFactory } from '../../lib/designPatterns';
 
 export function ProjectDetailView({ 
   project, 
@@ -446,11 +445,14 @@ export function ProjectDetailView({
                               >
                                 {task.labels && task.labels.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
-                                    {task.labels.map((lbl, i) => (
-                                      <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white" style={{ backgroundColor: lbl.color }}>
-                                        {lbl.name}
-                                      </span>
-                                    ))}
+                                    {task.labels.map((lbl, i) => {
+                                      const flyweight = TagFactory.getTagType(lbl.name, '', '');
+                                      return (
+                                        <span key={i} className="text-[10px] px-1.5 py-0.5 rounded-full font-medium text-white" style={{ backgroundColor: lbl.color }}>
+                                          {flyweight.name}
+                                        </span>
+                                      );
+                                    })}
                                   </div>
                                 )}
                                 <div className="flex justify-between items-start">
