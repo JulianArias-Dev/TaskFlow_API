@@ -59,7 +59,7 @@ namespace TaskFlow_API.Models
             return new Task
             {
                 Id = Guid.NewGuid(),
-                Title = this.Title,
+                Title = $"{this.Title} (Copy)",
                 Description = this.Description,
                 Type = this.Type,
                 Status = this.Status,

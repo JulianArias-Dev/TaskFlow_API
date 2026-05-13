@@ -25,15 +25,30 @@ namespace TaskFlow_API.Models
         public List<Task> Tasks { get; set; } = new();
         public List<Tag> Tags { get; set; } = new();
 
-        // Relación Many-to-Many con User (miembros del proyecto)
+        // Relaciï¿½n Many-to-Many con User (miembros del proyecto)
         public List<ProjectMember> Members { get; set; } = new();
 
         public object Clone()
         {
+            var newProjectId = Guid.NewGuid();
+            var newBoards = this.Boards.Select(b =>
+            {
+                var clonedBoard = (Board)b.Clone();
+                clonedBoard.ProjectId = newProjectId;
+
+                // Actualizar BoardId de las columns clonadas
+                foreach (var col in clonedBoard.Columns)
+                {
+                    col.BoardId = clonedBoard.Id;
+                }
+
+                return clonedBoard;
+            }).ToList();
+
             return new Project
             {
-                Id = Guid.NewGuid(),
-                Name = this.Name,
+                Id = newProjectId,
+                Name = $"{this.Name} (Copy)",
                 Description = this.Description,
                 Color = this.Color,
                 Status = this.Status,
@@ -42,12 +57,7 @@ namespace TaskFlow_API.Models
                 UpdatedAt = DateTime.UtcNow,
                 StartDate = this.StartDate,
                 EndDate = this.EndDate,
-                Boards = this.Boards.Select(b => new Board
-                {
-                    Id = Guid.NewGuid(),
-                    Name = b.Name,
-                    ProjectId = Guid.NewGuid() // Será actualizado al guardar
-                }).ToList(),
+                Boards = newBoards,
                 Tasks = this.Tasks.Select(t => (Task)t.Clone()).ToList(),
                 Tags = new(),
                 Members = new()
