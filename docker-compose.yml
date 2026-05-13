@@ -2,9 +2,9 @@ services:
   # ===========================================================================
   # SQL Server — base de datos
   # ===========================================================================
-  sqlserver:
+  db:
     image: mcr.microsoft.com/mssql/server:2022-latest
-    container_name: taskflow-sqlserver
+    container_name: taskflow-db
     environment:
       ACCEPT_EULA: "Y"
       SA_PASSWORD: "Unicesar+2026"
@@ -14,7 +14,7 @@ services:
     volumes:
       - sqlserver_data:/var/opt/mssql
     networks:
-      - taskflow-network
+      - taskflow
     healthcheck:
       test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Unicesar+2026' -C -Q 'SELECT 1' || exit 1"]
       interval: 10s
@@ -25,7 +25,7 @@ services:
   # ===========================================================================
   # TaskFlow API (.NET 9)
   # ===========================================================================
-  taskflow-api:
+  api:
     build:
       context: .
       dockerfile: Dockerfile
@@ -34,14 +34,14 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
-      ConnectionStrings__DefaultConnection: "Server=sqlserver,1433;Database=TaskFlowDB;User=sa;Password=Unicesar+2026;TrustServerCertificate=True;"
+      ConnectionStrings__DefaultConnection: "Server=db,1433;Database=TaskFlowDB;User=sa;Password=Unicesar+2026;TrustServerCertificate=True;"
     ports:
       - "8080:8080"
     depends_on:
-      sqlserver:
+      db:
         condition: service_healthy
     networks:
-      - taskflow-network
+      - taskflow
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
@@ -52,7 +52,7 @@ services:
   # ===========================================================================
   # TaskFlow Frontend (React + Vite servido por Nginx)
   # ===========================================================================
-  taskflow-frontend:
+  web:
     build:
       context: ./TaskFlow_front
       dockerfile: Dockerfile
@@ -60,16 +60,16 @@ services:
         # Vacío => el cliente usa /api (relativo) y nginx proxea al backend.
         VITE_API_URL: ""
     image: julianariasdev/taskflow-frontend:latest
-    container_name: taskflow-frontend
+    container_name: taskflow-web
     # Puerto del host configurable vía variable FRONTEND_PORT (default 8081).
     # Si necesitas otro puerto: $env:FRONTEND_PORT=5173; docker compose up -d
     ports:
       - "${FRONTEND_PORT:-8081}:80"
     depends_on:
-      taskflow-api:
+      api:
         condition: service_healthy
     networks:
-      - taskflow-network
+      - taskflow
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/healthz"]
       interval: 30s
@@ -82,5 +82,5 @@ volumes:
     driver: local
 
 networks:
-  taskflow-network:
+  taskflow:
     driver: bridge

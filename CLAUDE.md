@@ -102,8 +102,8 @@ docker compose up -d --build
 $env:FRONTEND_PORT=5173; docker compose up -d
 
 # Reconstruir un servicio puntual
-docker compose up -d --build taskflow-api
-docker compose up -d --build taskflow-frontend
+docker compose up -d --build api
+docker compose up -d --build web
 
 # Frontend en modo dev (sin Docker)
 cd TaskFlow_front
@@ -112,7 +112,7 @@ npm run dev      # vite en :3000 con proxy /api → :8080
 npm run build    # tsc --noEmit + vite build
 ```
 
-El frontend en dev hace proxy de `/api` a `VITE_BACKEND_PROXY_URL` (default `http://localhost:8080`). En prod, **nginx dentro del contenedor del frontend** proxea `/api/` a `http://taskflow-api:8080/api/` (resolución DNS por la red de compose).
+El frontend en dev hace proxy de `/api` a `VITE_BACKEND_PROXY_URL` (default `http://localhost:8080`). En prod, **nginx dentro del contenedor del frontend** proxea `/api/` a `http://api:8080/api/` (resolución DNS por la red de compose).
 
 ## Manejo de excepciones del backend
 
