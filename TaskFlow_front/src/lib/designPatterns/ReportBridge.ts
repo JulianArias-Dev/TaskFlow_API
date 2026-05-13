@@ -14,7 +14,7 @@ export interface IReportFormat {
 
 export class PDFReportFormat implements IReportFormat {
   formatHeader(title: string) { return `[ENCABEZADO PDF] Título: ${title}\n======================\n`; }
-  formatBody(data: any[]) { return `  -> [CUERPO PDF] Mostrando ${data.length} elementos renderizados gráficamente.\n`; }
+  formatBody(data: any[]) { return `  -> [CUERPO PDF] Mostrando ${data.length} elementos renderizados gráficamente.\n ${JSON.stringify(data)}\n`; }
   formatFooter() { return `======================\n[PIE DE PDF] Fin del documento.`; }
   getFileExtension() { return '.pdf'; }
 }

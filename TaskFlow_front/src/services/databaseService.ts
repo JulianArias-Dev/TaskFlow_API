@@ -242,12 +242,22 @@ export class DatabaseService {
     for (const p of byId.values()) {
       const project = mapProject(p);
       const tasks = await this.getTasks(p.id);
-      const done = tasks.filter((t) => t.status?.toLowerCase().includes('done') || t.status?.toLowerCase().includes('hecho')).length;
+      const boards = await this.getBoards(p.id);
+      
+      const doneColumnIds = boards
+        .flatMap(b => b.columns)
+        .filter(c =>
+          c.name.toLowerCase().includes('done') ||
+          c.name.toLowerCase().includes('finalizado')
+        )
+        .map(c => c.id);
+
+      const done = tasks.filter(t => doneColumnIds.includes(t.status)).length;
       const progress = tasks.length === 0 ? 0 : Math.round((done / tasks.length) * 100);
       result.push({ project, progress });
+      }
+      return result;
     }
-    return result;
-  }
 
   async updateProject(projectId: string, updates: Partial<Project>): Promise<void> {
     const toIsoOrNull = (v: unknown): string | null | undefined => {
