@@ -540,8 +540,8 @@ public class TaskFlowDbContext : DbContext
 	{
 		// AppRoles
 		modelBuilder.Entity<AppRole>().HasData(
-			new AppRole { Id = 1, Name = "Admin" },
-			new AppRole { Id = 2, Name = "CommonUser" }
+			new AppRole { Id = 1, Name = "Administrador" },
+			new AppRole { Id = 2, Name = "Usuario Común" }
 		);
 
 		// ----- SuperAdmin (bootstrap) ---------------------------------------
@@ -572,41 +572,42 @@ public class TaskFlowDbContext : DbContext
 
 		// ProjectRoles
 		modelBuilder.Entity<ProjectRole>().HasData(
-			new ProjectRole { Id = 1, Name = "Creator" },
-			new ProjectRole { Id = 2, Name = "Project Manager" },
-			new ProjectRole { Id = 3, Name = "Developer" }
+			new ProjectRole { Id = 1, Name = "Creador" },
+			new ProjectRole { Id = 2, Name = "Gestor de Proyecto" },
+			new ProjectRole { Id = 3, Name = "Desarrollador" }
 		);
 
 		// TaskPriority
 		modelBuilder.Entity<TaskPriority>().HasData(
-			new TaskPriority { Id = 1, Name = "LOW" },
-			new TaskPriority { Id = 2, Name = "MEDIUM" },
-			new TaskPriority { Id = 3, Name = "HIGH" },
-			new TaskPriority { Id = 4, Name = "CRITICAL" }
+			new TaskPriority { Id = 1, Name = "Baja" },
+			new TaskPriority { Id = 2, Name = "Media" },
+			new TaskPriority { Id = 3, Name = "Alta" },
+			new TaskPriority { Id = 4, Name = "Crítica" }
 		);
 
         modelBuilder.Entity<TaskFlow_API.Models.TaskStatus>().HasData(
-            new TaskFlow_API.Models.TaskStatus { Id = 1, Name = "To Do" },
-            new TaskFlow_API.Models.TaskStatus { Id = 2, Name = "In Progress" },
-            new TaskFlow_API.Models.TaskStatus { Id = 3, Name = "Done" },
-            new TaskFlow_API.Models.TaskStatus { Id = 4, Name = "Blocked" }
+            new TaskFlow_API.Models.TaskStatus { Id = 1, Name = "Por Hacer" },
+            new TaskFlow_API.Models.TaskStatus { Id = 2, Name = "En Progreso" },
+            new TaskFlow_API.Models.TaskStatus { Id = 3, Name = "Hecho" },
+            new TaskFlow_API.Models.TaskStatus { Id = 4, Name = "Bloqueado" }
         );
 
         modelBuilder.Entity<TaskType>().HasData(
-            new TaskType { Id = 1, Name = "Feature" },
-            new TaskType { Id = 2, Name = "Bug" },
-            new TaskType { Id = 3, Name = "Improvement" },
-            new TaskType { Id = 4, Name = "Research" },
-			new TaskType { Id = 5, Name = "Task" },
-			new TaskType { Id = 6, Name = "SubTask" }
+            new TaskType { Id = 1, Name = "Funcionalidad" },
+            new TaskType { Id = 2, Name = "Error" },
+            new TaskType { Id = 3, Name = "Mejora" },
+            new TaskType { Id = 4, Name = "Investigación" },
+			new TaskType { Id = 5, Name = "Tarea" },
+			new TaskType { Id = 6, Name = "Subtarea" }
 		);
 
         modelBuilder.Entity<ProjectStatus>().HasData(
-            new ProjectStatus { Id = 1, Name = "Active" },
-            new ProjectStatus { Id = 2, Name = "Completed" },
-            new ProjectStatus { Id = 3, Name = "On Hold" },
-            new ProjectStatus { Id = 4, Name = "Cancelled" }
-        );  		
+            new ProjectStatus { Id = 1, Name = "Activo" },
+            new ProjectStatus { Id = 2, Name = "Completado" },
+            new ProjectStatus { Id = 3, Name = "En Pausa" },
+            new ProjectStatus { Id = 4, Name = "Cancelado" },
+            new ProjectStatus { Id = 5, Name = "Archivado" }
+        );
 	}
 }
 

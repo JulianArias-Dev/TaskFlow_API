@@ -268,8 +268,8 @@ export function ProjectDetailView({
   };
 
   const getPriorityColor = (priority: string) => {
-    // Tolerante a ambos juegos de nombres: catálogo del backend (LOW/MEDIUM/
-    // HIGH/CRITICAL) y nomenclatura legacy en español (BAJA/MEDIA/ALTA/URGENTE).
+    // Catálogo actual del backend: Baja/Media/Alta/Crítica.
+    // También aceptamos nombres legacy (LOW/MEDIUM/HIGH/CRITICAL, URGENTE).
     switch (priority?.toUpperCase()) {
       case 'BAJA':
       case 'LOW':
@@ -280,6 +280,8 @@ export function ProjectDetailView({
       case 'ALTA':
       case 'HIGH':
         return 'bg-orange-100 text-orange-700';
+      case 'CRÍTICA':
+      case 'CRITICA':
       case 'URGENTE':
       case 'URGENT':
       case 'CRITICAL':

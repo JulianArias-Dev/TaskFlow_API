@@ -1,4 +1,5 @@
 using TaskFlow_API.DTOs;
+using TaskFlow_API.Patterns.State;
 using TaskFlow_API.Repositories;
 using TaskFlow_API.Services;
 
@@ -29,10 +30,6 @@ public class TaskServiceProxy : ITaskService
     private readonly IHttpContextAccessor _httpContext;
     private readonly ILogger<TaskServiceProxy> _logger;
 
-    private const int ProjectStatusActiveId = 1;
-    private const int ProjectStatusCompletedId = 2;
-    private const int ProjectStatusCancelledId = 4;
-
     public TaskServiceProxy(
         ITaskService real,
         IUnitOfWork uow,
@@ -57,8 +54,8 @@ public class TaskServiceProxy : ITaskService
         var project = await _uow.Projects.GetByIdAsync(board.ProjectId)
             ?? throw new KeyNotFoundException("Project not found");
 
-        // 2) Proyecto debe estar activo.
-        EnsureProjectIsActive(project);
+        // 2) Estado del proyecto debe permitir modificar tareas.
+        EnsureCanModifyTasks(project);
 
         // 3) Usuario actual debe ser miembro o el dueño.
         await EnsureCurrentUserIsAuthorized(project.Id, project.OwnerId);
@@ -81,7 +78,7 @@ public class TaskServiceProxy : ITaskService
                 var project = await _uow.Projects.GetByIdAsync(board.ProjectId);
                 if (project != null)
                 {
-                    EnsureProjectIsActive(project);
+                    EnsureCanModifyTasks(project);
                     await EnsureCurrentUserIsAuthorized(project.Id, project.OwnerId);
                 }
             }
@@ -102,7 +99,7 @@ public class TaskServiceProxy : ITaskService
 
             if (project != null)
             {
-                EnsureProjectIsActive(project);
+                EnsureCanModifyTasks(project);
                 await EnsureCurrentUserIsAuthorized(project.Id, project.OwnerId);
             }
         }
@@ -123,7 +120,7 @@ public class TaskServiceProxy : ITaskService
         var project = await _uow.Projects.GetByIdAsync(board.ProjectId)
             ?? throw new KeyNotFoundException($"Project {board.ProjectId} not found");
 
-        EnsureProjectIsActive(project);
+        EnsureCanModifyTasks(project);
         await EnsureCurrentUserIsAuthorized(board.ProjectId, project.OwnerId);
 
         return await _real.CreateTaskByTypeAsync(taskType, title, description, columnId);
@@ -139,7 +136,7 @@ public class TaskServiceProxy : ITaskService
             var project = board != null ? await _uow.Projects.GetByIdAsync(board.ProjectId) : null;
             if (project != null)
             {
-                EnsureProjectIsActive(project);
+                EnsureCanModifyTasks(project);
                 await EnsureCurrentUserIsAuthorized(project.Id, project.OwnerId);
             }
         }
@@ -160,12 +157,17 @@ public class TaskServiceProxy : ITaskService
 
     // -------- Helpers de validación --------
 
-    private static void EnsureProjectIsActive(Models.Project project)
+    /// <summary>
+    /// Delega la regla al patrón State: cada estado declara si admite cambios
+    /// en tareas (`CanModifyTasks`). Sin constantes mágicas — agregar estados
+    /// nuevos (p. ej. "Archivado") no requiere tocar este proxy.
+    /// </summary>
+    private static void EnsureCanModifyTasks(Models.Project project)
     {
-        if (project.StatusId == ProjectStatusCompletedId)
-            throw new InvalidOperationException("Cannot modify tasks: project is already completed.");
-        if (project.StatusId == ProjectStatusCancelledId)
-            throw new InvalidOperationException("Cannot modify tasks: project is cancelled.");
+        var state = ProjectStateFactory.For(project);
+        if (!state.CanModifyTasks())
+            throw new InvalidOperationException(
+                $"No se pueden modificar tareas: el proyecto está en estado '{state.Name}'.");
     }
 
     private async System.Threading.Tasks.Task EnsureCurrentUserIsAuthorized(Guid projectId, Guid ownerId)

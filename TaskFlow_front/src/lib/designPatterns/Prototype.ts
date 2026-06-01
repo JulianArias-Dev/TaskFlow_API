@@ -44,7 +44,7 @@ export class ProjectPrototype implements IPrototype<Project> {
     cloned.id = `proj-copy-${Date.now()}`;
     cloned.createdAt = now;
     cloned.updatedAt = now;
-    cloned.status = ProjectStatus.PLANIFICADO;
+    cloned.status = ProjectStatus.ACTIVO;
     cloned.name = `${cloned.name} (Copia)`;
 
     return cloned;

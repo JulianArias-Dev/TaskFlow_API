@@ -12,11 +12,11 @@
 
 import { api } from '../lib/api';
 import { auth } from '../lib/firebase';
+import { ProjectStatus } from '../types/models';
 import type {
   Board,
   BoardColumn,
   Project,
-  ProjectStatus,
   SavedFilter,
   Task,
   AttachmentItem,
@@ -42,29 +42,33 @@ import type {
 // Mappers backend ↔ frontend
 // ---------------------------------------------------------------------------
 
+// Mapea el nombre del catálogo del backend a `ProjectStatus`.
+// Acepta los nombres actuales (en español) y los legacy en inglés.
 function statusToEnum(status: string): ProjectStatus {
   const norm = (status ?? '').toUpperCase().replace(/[\s_-]+/g, '');
   switch (norm) {
-    case 'ENPROGRESO':
-    case 'INPROGRESS':
+    case 'ACTIVO':
     case 'ACTIVE':
-      return 'EN_PROGRESO' as ProjectStatus;
+    case 'INPROGRESS':
+    case 'ENPROGRESO':
+      return ProjectStatus.ACTIVO;
+    case 'COMPLETADO':
+    case 'COMPLETED':
+      return ProjectStatus.COMPLETADO;
+    case 'ENPAUSA':
     case 'PAUSADO':
     case 'PAUSED':
     case 'ONHOLD':
-      return 'PAUSADO' as ProjectStatus;
-    case 'COMPLETADO':
-    case 'COMPLETED':
-      return 'COMPLETADO' as ProjectStatus;
-    case 'ARCHIVADO':
-    case 'ARCHIVED':
+      return ProjectStatus.EN_PAUSA;
+    case 'CANCELADO':
     case 'CANCELLED':
     case 'CANCELED':
-      return 'ARCHIVADO' as ProjectStatus;
-    case 'PLANIFICADO':
-    case 'PLANNED':
+      return ProjectStatus.CANCELADO;
+    case 'ARCHIVADO':
+    case 'ARCHIVED':
+      return ProjectStatus.ARCHIVADO;
     default:
-      return 'PLANIFICADO' as ProjectStatus;
+      return ProjectStatus.ACTIVO;
   }
 }
 
@@ -96,6 +100,7 @@ function mapProject(p: ProjectApi): Project {
     name: p.name,
     description: p.description ?? '',
     status: statusToEnum(p.status),
+    statusId: p.statusId,
     startDate: p.startDate ?? null,
     endDate: p.endDate ?? null,
     ownerId: p.ownerId,
@@ -114,10 +119,10 @@ function mapTask(t: TaskApi, projectId: string, boardId: string): Task {
     description: t.description,
     status: t.columnId, // status del frontend = columnId del backend
     // Mantenemos los nombres tal como vienen del catálogo del backend
-    // (LOW/MEDIUM/HIGH/CRITICAL para Priority; Feature/Bug/Task/... para Type).
+    // (Baja/Media/Alta/Crítica para Priority; Funcionalidad/Error/Tarea/... para Type).
     // El componente de UI debe ser tolerante a estos valores.
-    priority: t.priority ?? 'MEDIUM',
-    type: t.type ?? 'Task',
+    priority: t.priority ?? 'Media',
+    type: t.type ?? 'Tarea',
     dueDate: t.dueDate ? t.dueDate!.split('T')[0] : null, // El backend devuelve ISO string; el frontend espera solo la fecha (YYYY-MM-DD).
     estimatedHours: t.estimatedHours,
     loggedHours: t.actualHours,
@@ -205,7 +210,7 @@ export class DatabaseService {
   ): Promise<string> {
     const user = this.requireUser();
     const projectStatuses = await this.catalog.getProjectStatuses();
-    const statusId = await this.catalog.findId(projectStatuses, projectData.status || 'PLANIFICADO', 1);
+    const statusId = await this.catalog.findId(projectStatuses, projectData.status || 'Activo', 1);
 
     const toIsoOrNull = (v: unknown): string | null => {
       if (v === null || v === undefined || v === '') return null;
@@ -273,7 +278,13 @@ export class DatabaseService {
       endDate: toIsoOrNull(updates.endDate),
     };
 
-    if (updates.status) {
+    // Preferimos el statusId numérico (set por el form) — evita problemas de
+    // mapeo por nombre cuando hay diferencias de casing/espacios entre el
+    // enum del frontend y el catálogo del backend (p. ej. 'EN_PAUSA' vs
+    // 'En Pausa').
+    if (updates.statusId && updates.statusId > 0) {
+      payload.statusId = updates.statusId;
+    } else if (updates.status) {
       const statuses = await this.catalog.getProjectStatuses();
       payload.statusId = await this.catalog.findId(statuses, updates.status, 1);
     }
@@ -415,7 +426,7 @@ export class DatabaseService {
     this.requireUser();
 
     const types = await this.catalog.getTaskTypes();
-    const typeId = await this.catalog.findId(types, this.normalizeType(taskData.type || 'Task'), 5);
+    const typeId = await this.catalog.findId(types, this.normalizeType(taskData.type || 'Tarea'), 5);
 
     if (taskData.parentTaskId) {
       // Si se especificó parentTaskId, el endpoint de creación es diferente y no aplica Factory Method.
@@ -522,23 +533,28 @@ export class DatabaseService {
     // No-op: el backend registra los AuditLog automáticamente desde sus services.
   }
 
+  // Mapea legados ingleses (LOW/MEDIUM/...) y variantes legacy en español
+  // (URGENTE) al nombre actual del catálogo (Baja/Media/Alta/Crítica).
+  // Si llega ya en el nombre nuevo, se devuelve tal cual.
   private normalizePriority(priority: string): string {
-  const map: Record<string, string> = {
-    'BAJA': 'LOW',
-    'MEDIA': 'MEDIUM',
-    'ALTA': 'HIGH',
-    'URGENTE': 'CRITICAL',
-  };
-  return map[priority?.toUpperCase()] ?? priority;
+    const map: Record<string, string> = {
+      'LOW': 'Baja',
+      'MEDIUM': 'Media',
+      'HIGH': 'Alta',
+      'CRITICAL': 'Crítica',
+      'URGENTE': 'Crítica',
+    };
+    return map[priority?.toUpperCase()] ?? priority;
   }
 
   private normalizeType(type: string): string {
     const map: Record<string, string> = {
-      'FEATURE': 'Feature',
-      'BUG': 'Bug',
-      'IMPROVEMENT': 'Improvement',
-      'RESEARCH': 'Research',
-      'TASK': 'Task',
+      'FEATURE': 'Funcionalidad',
+      'BUG': 'Error',
+      'IMPROVEMENT': 'Mejora',
+      'RESEARCH': 'Investigación',
+      'TASK': 'Tarea',
+      'SUBTASK': 'Subtarea',
     };
     return map[type?.toUpperCase()] ?? type;
   }

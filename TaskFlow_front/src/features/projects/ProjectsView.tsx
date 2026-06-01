@@ -139,14 +139,15 @@ export function ProjectsView({ userRole, onSelectProject }: { userRole?: string,
                       </div>
                       <div className="flex items-center gap-2 mb-2">
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider
-                          ${project.status === 'ARCHIVADO' ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' : 
-                            project.status === 'COMPLETADO' ? 'bg-green-100 text-green-700' : 
-                            project.status === 'EN_PROGRESO' ? 'bg-blue-100 text-blue-700' :
-                            project.status === 'PAUSADO' ? 'bg-yellow-100 text-yellow-700' :
+                          ${project.status === 'ARCHIVADO' ? 'bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400' :
+                            project.status === 'CANCELADO' ? 'bg-red-100 text-red-700' :
+                            project.status === 'COMPLETADO' ? 'bg-green-100 text-green-700' :
+                            project.status === 'ACTIVO' ? 'bg-blue-100 text-blue-700' :
+                            project.status === 'EN_PAUSA' ? 'bg-yellow-100 text-yellow-700' :
                             'bg-purple-100 text-purple-700'
                           }
                         `}>
-                          {project.status?.replace('_', ' ') || 'PLANIFICADO'}
+                          {project.status?.replace('_', ' ') || 'ACTIVO'}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-2">{project.description || 'Sin descripción'}</p>

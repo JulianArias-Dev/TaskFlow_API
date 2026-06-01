@@ -29,8 +29,8 @@ interface TaskModalProps {
 export function TaskModal({ task, projectId, boardId, columns, statusId, onClose, onSave, onClone }: TaskModalProps) {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
-  const [priority, setPriority] = useState<Task['priority']>(task?.priority || 'MEDIUM');
-  const [type, setType] = useState<Task['type']>(task?.type?.toUpperCase() || 'TASK');
+  const [priority, setPriority] = useState<Task['priority']>(task?.priority || 'Media');
+  const [type, setType] = useState<Task['type']>(task?.type || 'Tarea');
   const [dueDate, setDueDate] = useState(task?.dueDate ? task?.dueDate.split('T')[0] : '');
   const [estimatedHours, setEstimatedHours] = useState(task?.estimatedHours?.toString() || '');
   const [loggedHours, setLoggedHours] = useState(task?.loggedHours?.toString() || '');
@@ -114,8 +114,8 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         status: currentStatus,
         title: newSubTaskTitle.trim(),
         description: '',
-        priority: 'MEDIUM',
-        type: 'TASK',
+        priority: 'Media',
+        type: 'Tarea',
         assigneeIds: [],
         parentTaskId: task.id,
       }as any);

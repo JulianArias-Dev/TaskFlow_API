@@ -183,9 +183,9 @@ builder.Services
     });
 
 builder.Services.AddAuthorizationBuilder()
-    .AddPolicy("AdminOnly", policy => policy.RequireRole("Admin"))
-    .AddPolicy("ManagerOrAdmin", policy => policy.RequireRole("Admin", "Manager"))
-    .AddPolicy("DeveloperOrHigher", policy => policy.RequireRole("Admin", "Manager", "Developer"));
+    .AddPolicy("AdminOnly", policy => policy.RequireRole("Administrador"))
+    .AddPolicy("ManagerOrAdmin", policy => policy.RequireRole("Administrador", "Gestor de Proyecto"))
+    .AddPolicy("DeveloperOrHigher", policy => policy.RequireRole("Administrador", "Gestor de Proyecto", "Desarrollador"));
 
 builder.Services.AddCors(options =>
 {

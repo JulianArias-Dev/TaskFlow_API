@@ -164,7 +164,7 @@ public class UsersController : ControllerBase
     /// Permite también activar/desactivar la cuenta en el mismo request.
     /// </summary>
     [HttpPut("{id}/role")]
-    [Authorize(Roles = "Admin")]
+    [Authorize(Roles = "Administrador")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status403Forbidden)]

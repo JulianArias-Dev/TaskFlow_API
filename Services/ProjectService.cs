@@ -4,6 +4,7 @@ using TaskFlow_API.Repositories;
 using TaskFlow_API.Patterns.Builder;
 using TaskFlow_API.Patterns.Prototype;
 using TaskFlow_API.Patterns.Adapter;
+using TaskFlow_API.Patterns.State;
 
 namespace TaskFlow_API.Services;
 
@@ -108,6 +109,36 @@ public class ProjectService : IProjectService
 			throw new KeyNotFoundException($"Project with ID {id} not found");
 		}
 
+		var current = ProjectStateFactory.For(project);
+
+		// Detecta si la request trae campos distintos al estado.
+		var wantsFieldChange =
+			!string.IsNullOrEmpty(updateProjectDto.Name) ||
+			updateProjectDto.Description != null ||
+			!string.IsNullOrEmpty(updateProjectDto.Color) ||
+			updateProjectDto.StartDate.HasValue ||
+			updateProjectDto.EndDate.HasValue;
+
+		// Validación 1: editar campos exige CanEdit() en el estado actual.
+		if (wantsFieldChange && !current.CanEdit())
+		{
+			throw new InvalidOperationException(
+				$"No se puede editar el proyecto: el estado '{current.Name}' es de solo lectura.");
+		}
+
+		// Validación 2: cambio de StatusId debe ser una transición permitida.
+		if (updateProjectDto.StatusId.HasValue
+			&& updateProjectDto.StatusId.Value > 0
+			&& updateProjectDto.StatusId.Value != project.StatusId)
+		{
+			if (!current.CanTransitionTo(updateProjectDto.StatusId.Value))
+			{
+				throw new InvalidOperationException(
+					$"Transición no permitida: '{current.Name}' → StatusId {updateProjectDto.StatusId.Value}.");
+			}
+			project.StatusId = updateProjectDto.StatusId.Value;
+		}
+
 		if (!string.IsNullOrEmpty(updateProjectDto.Name))
 			project.Name = updateProjectDto.Name;
 
@@ -122,11 +153,6 @@ public class ProjectService : IProjectService
 
 		if (updateProjectDto.EndDate.HasValue)
 			project.EndDate = updateProjectDto.EndDate.Value;
-
-		if (updateProjectDto.StatusId.HasValue && updateProjectDto.StatusId.Value > 0)
-		{
-			project.StatusId = updateProjectDto.StatusId.Value;
-		}
 
 		project.UpdatedAt = DateTime.UtcNow;
 
@@ -144,6 +170,13 @@ public class ProjectService : IProjectService
             return false;
         }
 
+        var state = ProjectStateFactory.For(project);
+        if (!state.CanDelete())
+        {
+            throw new InvalidOperationException(
+                $"No se puede eliminar el proyecto: el estado '{state.Name}' no permite eliminación.");
+        }
+
         await _unitOfWork.Projects.DeleteAsync(id);
         await _unitOfWork.SaveChangesAsync();
         return true;
@@ -157,8 +190,17 @@ public class ProjectService : IProjectService
             return null;
         }
 
+        var state = ProjectStateFactory.For(originalProject);
+        if (!state.CanClone())
+        {
+            throw new InvalidOperationException(
+                $"No se puede clonar el proyecto: el estado '{state.Name}' no permite clonación.");
+        }
+
         var clonedProject = (Project)PrototypeManager.CloneProject(originalProject);
         clonedProject.OwnerId = newOwnerId;
+        // El proyecto clonado siempre arranca Activo, independiente del estado del original.
+        clonedProject.StatusId = ActivoProjectState.Id;
 
         await _unitOfWork.Projects.AddAsync(clonedProject);
         await _unitOfWork.SaveChangesAsync();
@@ -170,6 +212,13 @@ public class ProjectService : IProjectService
 	{
 		var project = await _unitOfWork.Projects.GetByIdAsync(projectId);
 		if (project == null) return false;
+
+		var state = ProjectStateFactory.For(project);
+		if (!state.CanAddMembers())
+		{
+			throw new InvalidOperationException(
+				$"No se pueden agregar miembros: el proyecto está en estado '{state.Name}'.");
+		}
 
 		var user = await _unitOfWork.Users.GetByIdAsync(userId);
 		if (user == null) return false;
@@ -200,6 +249,13 @@ public class ProjectService : IProjectService
         if (project == null)
         {
             return false;
+        }
+
+        var state = ProjectStateFactory.For(project);
+        if (!state.CanRemoveMembers())
+        {
+            throw new InvalidOperationException(
+                $"No se pueden quitar miembros: el proyecto está en estado '{state.Name}'.");
         }
 
         await _unitOfWork.Projects.RemoveMemberAsync(projectId, userId);

@@ -7,11 +7,13 @@
  * por lo que NO son parte del tipo `Task` aquí.
  */
 
+// Alineado 1:1 con el catálogo `ProjectStatuses` del backend.
+// Valores coincidentes con `ProjectStatus.Name` en BD (en MAYÚSCULAS).
 export enum ProjectStatus {
-  PLANIFICADO = 'PLANIFICADO',
-  EN_PROGRESO = 'EN_PROGRESO',
-  PAUSADO = 'PAUSADO',
+  ACTIVO = 'ACTIVO',
   COMPLETADO = 'COMPLETADO',
+  EN_PAUSA = 'EN_PAUSA',
+  CANCELADO = 'CANCELADO',
   ARCHIVADO = 'ARCHIVADO',
 }
 
@@ -20,6 +22,9 @@ export interface Project {
   name: string;
   description: string;
   status: ProjectStatus;
+  /** Id del catálogo `ProjectStatuses` del backend (1..5). Útil para enviar
+   *  transiciones de estado sin depender de coincidencias por nombre. */
+  statusId: number;
   ownerId: string;
   createdAt: string;
   updatedAt: string;
@@ -61,11 +66,11 @@ export interface Task {
   status: string;
   /**
    * Nombre legible de la prioridad tal como viene del catálogo del backend
-   * (ej. "LOW", "MEDIUM", "HIGH", "CRITICAL"). Se mantiene como `string`
+   * (ej. "Baja", "Media", "Alta", "Crítica"). Se mantiene como `string`
    * para no romper cuando el catálogo cambie.
    */
   priority: string;
-  /** Nombre legible del tipo (ej. "Feature", "Bug", "Task"). */
+  /** Nombre legible del tipo (ej. "Funcionalidad", "Error", "Tarea"). */
   type: string;
   dueDate?: string | null;
   estimatedHours?: number | null;

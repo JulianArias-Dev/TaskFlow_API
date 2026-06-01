@@ -259,7 +259,7 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
                   {!isCollapsed && <span>Mi Perfil</span>}
                 </button>
                 
-                {profile?.role?.toUpperCase() === 'ADMIN' && (
+                {profile?.role?.toUpperCase() === 'ADMINISTRADOR' && (
                   <button 
                     onClick={() => setActiveTab('admin')}
                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 ${isCollapsed ? 'justify-center px-2' : ''}`}
@@ -298,7 +298,7 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
                 {!isCollapsed && <span>Mi Perfil</span>}
               </button>
               
-              {profile?.role?.toUpperCase() === 'ADMIN' && (
+              {profile?.role?.toUpperCase() === 'ADMINISTRADOR' && (
                 <button
                   onClick={() => setActiveTab('admin')}
                   className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${activeTab === 'admin' ? 'bg-blue-50 text-blue-700' : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'} ${isCollapsed ? 'justify-center px-2' : ''}`}
@@ -358,7 +358,7 @@ export function ProfileDashboard({ user }: { user: AuthUser }) {
                 <button onClick={() => setActiveTab('profile')} className={`p-2 rounded-md ${activeTab === 'profile' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 dark:text-gray-300'}`}>
                   <UserIcon className="w-5 h-5" />
                 </button>
-                {profile?.role?.toUpperCase() === 'ADMIN' && (
+                {profile?.role?.toUpperCase() === 'ADMINISTRADOR' && (
                   <button onClick={() => setActiveTab('admin')} className={`p-2 rounded-md ${activeTab === 'admin' ? 'bg-blue-50 text-blue-600' : 'text-gray-600 dark:text-gray-300'}`}>
                     <Shield className="w-5 h-5" />
                   </button>

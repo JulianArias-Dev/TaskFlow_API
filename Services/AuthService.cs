@@ -117,7 +117,7 @@ public class AuthService : IAuthService
 
         if (totalUsers == 0)
         {
-            _logger.LogInformation("Primer usuario del sistema — promovido a Admin: {Email}", registerDto.Email);
+            _logger.LogInformation("Primer usuario del sistema — promovido a Administrador: {Email}", registerDto.Email);
         }
 
         await _unitOfWork.Users.AddAsync(user);
@@ -141,7 +141,7 @@ public class AuthService : IAuthService
 			Email = userWithRole.Email,
 			Name = userWithRole.Name,
 			// ✅ CORRECCIÓN: Usamos el nombre descriptivo del catálogo
-			Role = userWithRole.AppRole?.Name ?? "CommonUser",
+			Role = userWithRole.AppRole?.Name ?? "Usuario Común",
 			ThemePreference = userWithRole.ThemePreference.ToString(),
 			NotifyByEmail = userWithRole.NotifyByEmail,
 			NotificationPreferences = userWithRole.NotificationPreferences,
@@ -186,7 +186,7 @@ public class AuthService : IAuthService
             new(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()),
             new(System.Security.Claims.ClaimTypes.Email, user.Email),
             new(System.Security.Claims.ClaimTypes.Name, user.Name),
-            new(System.Security.Claims.ClaimTypes.Role, user.AppRole?.Name ?? "CommonUser"),
+            new(System.Security.Claims.ClaimTypes.Role, user.AppRole?.Name ?? "Usuario Común"),
             // JTI (JWT ID) — identificador único para soportar revocación (logout)
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
         };

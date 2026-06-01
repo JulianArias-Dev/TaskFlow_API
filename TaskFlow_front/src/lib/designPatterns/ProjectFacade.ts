@@ -31,7 +31,8 @@ export class ProjectManagementFacade {
         description,
         startDate,
         endDate,
-        status: ProjectStatus.PLANIFICADO,
+        status: ProjectStatus.ACTIVO,
+        statusId: 1, // Activo (catálogo `ProjectStatuses` del backend)
       });
 
       // 2. Obtener el tablero autogenerado y sus columnas
@@ -42,8 +43,8 @@ export class ProjectManagementFacade {
       // 3. Crear una tarea introductoria (Builder)
       const welcomeTask = new TaskBuilder(projectId, defaultBoardId, `¡Bienvenido a ${name}!`)
         .setDescription('Comienza a organizar tu trabajo. Esta tarea fue autogenerada.')
-        .setPriority('ALTA')
-        .setType('FEATURE')
+        .setPriority('Alta')
+        .setType('Funcionalidad')
         .addLabel({ color: '#3b82f6', name: 'Onboarding' })
         .build();
 

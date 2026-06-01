@@ -24,8 +24,8 @@ export class BugTaskCreator extends TaskCreator {
   public factoryMethod(baseInfo: Partial<Task>): Task {
     return {
       ...baseInfo,
-      type: 'BUG',
-      priority: baseInfo.priority || 'ALTA', // Bugs suelen ser de alta prioridad por defecto
+      type: 'Error',
+      priority: baseInfo.priority || 'Alta', // Bugs suelen ser de alta prioridad por defecto
     } as Task;
   }
 }
@@ -34,8 +34,8 @@ export class FeatureTaskCreator extends TaskCreator {
   public factoryMethod(baseInfo: Partial<Task>): Task {
     return {
       ...baseInfo,
-      type: 'FEATURE',
-      priority: baseInfo.priority || 'MEDIA',
+      type: 'Funcionalidad',
+      priority: baseInfo.priority || 'Media',
     } as Task;
   }
 }
@@ -44,22 +44,27 @@ export class DefaultTaskCreator extends TaskCreator {
   public factoryMethod(baseInfo: Partial<Task>): Task {
     return {
       ...baseInfo,
-      type: 'TASK',
-      priority: baseInfo.priority || 'BAJA',
+      type: 'Tarea',
+      priority: baseInfo.priority || 'Baja',
     } as Task;
   }
 }
 
-// Interfaz estática simple para llamar a la factoría adecuada según un string
+// Interfaz estática simple para llamar a la factoría adecuada según un string.
+// Acepta tanto los nombres nuevos (en español) como los legacy en inglés.
 export class TaskFactory {
   static createTask(type: Task['type'], baseInfo: Partial<Task>): Task {
-    switch (type) {
+    switch (type?.toUpperCase()) {
       case 'BUG':
+      case 'ERROR':
         return new BugTaskCreator().create(baseInfo);
       case 'FEATURE':
+      case 'FUNCIONALIDAD':
         return new FeatureTaskCreator().create(baseInfo);
       case 'IMPROVEMENT':
+      case 'MEJORA':
       case 'TASK':
+      case 'TAREA':
       default:
         return new DefaultTaskCreator().create(baseInfo);
     }

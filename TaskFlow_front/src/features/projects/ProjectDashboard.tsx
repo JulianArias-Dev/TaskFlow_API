@@ -24,11 +24,11 @@ export function ProjectDashboard({ project, tasks, columns }: ProjectDashboardPr
       value: tasks.filter(t => t.status === col.id).length
     })).filter(d => d.value > 0);
 
-    // 2. Tasks by Priority
-    const priorities = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+    // 2. Tasks by Priority — usa los nombres del catálogo (en español).
+    const priorities = ['Baja', 'Media', 'Alta', 'Crítica'];
     const priorityData = priorities.map(p => ({
       name: p,
-      value: tasks.filter(t => t.priority?.toUpperCase() === p).length
+      value: tasks.filter(t => t.priority?.toUpperCase() === p.toUpperCase()).length
     }));
 
     // 3. Tasks by Assignee

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Project, ProjectStatus } from '../../types/models';
+import { Project } from '../../types/models';
 import { dbService } from '../../services/databaseService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -21,7 +21,9 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
   const [description, setDescription] = useState(project.description || '');
   const [startDate, setStartDate] = useState(project.startDate ? project.startDate.split('T')[0] : '');
   const [endDate, setEndDate] = useState(project.endDate ? project.endDate.split('T')[0] : '');
-  const [status, setStatus] = useState(project.status);
+  // Usamos el statusId numérico (catálogo del backend) — coincide 1:1 con los
+  // <option value={s.id}> y elimina ambigüedades por casing al cambiar de estado.
+  const [statusId, setStatusId] = useState<number>(project.statusId);
   const [saving, setSaving] = useState(false);
   
   const [members, setMembers] = useState<any[]>([]);
@@ -45,7 +47,7 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
   const [cloneName, setCloneName] = useState('');
   const [showClonePrompt, setShowClonePrompt] = useState(false);
 
-  const isOwnerOrAdmin = auth.currentUser?.uid === project.ownerId || userRole === 'ADMIN';
+  const isOwnerOrAdmin = auth.currentUser?.uid === project.ownerId || userRole?.toUpperCase() === 'ADMINISTRADOR';
 
   useEffect(() => {
     if (activeTab === 'members') {
@@ -62,10 +64,16 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
     e.preventDefault();
     if (!isOwnerOrAdmin) return;
     setSaving(true);
-    await dbService.updateProject(project.id, { name, description, startDate, endDate, status });
-    setSaving(false);
-    onUpdate();
-    onClose();
+    try {
+      await dbService.updateProject(project.id, { name, description, startDate, endDate, statusId });
+      onUpdate();
+      onClose();
+    } catch (err: any) {
+      console.error(err);
+      alert('No se pudo guardar el proyecto: ' + (err?.message || 'Error desconocido'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (e?: React.MouseEvent) => {
@@ -176,16 +184,16 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Estado</label>
                   <select
-                    value={status}
-                    onChange={e => setStatus(e.target.value as ProjectStatus)}
+                    value={statusId}
+                    onChange={e => setStatusId(Number(e.target.value))}
                     disabled={!isOwnerOrAdmin}
                     className="w-full px-3 py-2 bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   >
                     {projectStatuses.length === 0 && (
-                      <option value={status}>Cargando…</option>
+                      <option value={statusId}>Cargando…</option>
                     )}
                     {projectStatuses.map((s) => (
-                      <option key={s.id} value={s.name}>{s.name}</option>
+                      <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
                 </div>
