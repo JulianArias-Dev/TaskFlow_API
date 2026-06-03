@@ -19,5 +19,6 @@ public sealed class ActivoProjectState : ProjectStateBase
         CompletadoProjectState.Id,
         EnPausaProjectState.Id,
         CanceladoProjectState.Id,
+        ArchivadoProjectState.Id, // Archivar siempre disponible — equivalente a "guardar para histórico".
     };
 }

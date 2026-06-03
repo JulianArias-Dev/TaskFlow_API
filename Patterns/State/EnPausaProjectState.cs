@@ -15,5 +15,6 @@ public sealed class EnPausaProjectState : ProjectStateBase
     {
         ActivoProjectState.Id,
         CanceladoProjectState.Id,
+        ArchivadoProjectState.Id, // Archivar siempre disponible.
     };
 }

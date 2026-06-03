@@ -35,6 +35,27 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
   const { items: projectStatuses } = useCatalog('project-status');
   const { items: projectRoles } = useCatalog('project-roles');
 
+  // Transiciones permitidas del patrón State del backend
+  // (Patterns/State/*.cs). Debe mantenerse en sincronía con AllowedTransitions
+  // de cada IProjectState. Si el backend cambia, ajustar aquí.
+  //   1 Activo      → 2 Completado, 3 En Pausa, 4 Cancelado, 5 Archivado
+  //   2 Completado  → 1 Activo, 5 Archivado
+  //   3 En Pausa    → 1 Activo, 4 Cancelado, 5 Archivado
+  //   4 Cancelado   → 5 Archivado
+  //   5 Archivado   → (terminal)
+  const ALLOWED_TRANSITIONS: Record<number, number[]> = {
+    1: [2, 3, 4, 5],
+    2: [1, 5],
+    3: [1, 4, 5],
+    4: [5],
+    5: [],
+  };
+  const allowedStatusIds = new Set<number>([
+    project.statusId,
+    ...(ALLOWED_TRANSITIONS[project.statusId] ?? []),
+  ]);
+  const selectableStatuses = projectStatuses.filter((s) => allowedStatusIds.has(s.id));
+
   // Cuando carga el catálogo de roles, dejamos seleccionado el primero (sin
   // permisos elevados) por defecto.
   useEffect(() => {
@@ -186,16 +207,21 @@ export function ProjectSettingsModal({ project, userRole, onClose, onUpdate }: P
                   <select
                     value={statusId}
                     onChange={e => setStatusId(Number(e.target.value))}
-                    disabled={!isOwnerOrAdmin}
-                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    disabled={!isOwnerOrAdmin || project.statusId === 5}
+                    className="w-full px-3 py-2 bg-white dark:bg-gray-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 rounded-lg text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-60"
                   >
                     {projectStatuses.length === 0 && (
                       <option value={statusId}>Cargando…</option>
                     )}
-                    {projectStatuses.map((s) => (
+                    {selectableStatuses.map((s) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
+                  {project.statusId === 5 && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      Un proyecto archivado no admite cambios de estado.
+                    </p>
+                  )}
                 </div>
               </form>
 
