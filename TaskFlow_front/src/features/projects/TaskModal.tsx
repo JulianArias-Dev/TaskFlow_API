@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { Task, TaskLabel, BoardColumn, AttachmentItem, CommentItem } from '../../types/models';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { X, Tag, Copy, Paperclip, MessageSquare, Send, Plus } from 'lucide-react';
+import { X, Tag, Copy, Paperclip, MessageSquare, Send, Plus, CornerDownRight } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { dbService } from '../../services/databaseService';
 import { TaskFactory, TaskPrototype } from '../../lib/designPatterns';
@@ -21,12 +21,49 @@ interface TaskModalProps {
   boardId: string;
   columns: BoardColumn[];
   statusId: string;
+  /** Si se proporciona, esta tarea se crea/edita como subtarea (hijo de parentTaskId). */
+  parentTaskId?: string | null;
+  /** Título del padre para mostrar en el header al crear una subtarea. */
+  parentTitle?: string;
   onClose: () => void;
   onSave: (taskData: Partial<Task>) => Promise<void>;
   onClone?: (taskData: Partial<Task>) => Promise<void>;
 }
 
-export function TaskModal({ task, projectId, boardId, columns, statusId, onClose, onSave, onClone }: TaskModalProps) {
+/**
+ * Detecta si una columna del board representa el estado terminal "hecho".
+ * Tolera nombres en inglés y español (done/hecho/finalizado/completado/terminado).
+ */
+function isDoneColumn(name: string): boolean {
+  const n = name.toLowerCase();
+  return (
+    n === 'done' ||
+    n.includes('hecho') ||
+    n.includes('finalizad') ||
+    n.includes('completad') ||
+    n.includes('terminad')
+  );
+}
+
+function computeProgress(subs: Task[], cols: BoardColumn[]): number {
+  if (subs.length === 0) return 0;
+  const doneColIds = cols.filter((c) => isDoneColumn(c.name)).map((c) => c.id);
+  const done = subs.filter((s) => doneColIds.includes(s.status)).length;
+  return Math.round((done / subs.length) * 100);
+}
+
+export function TaskModal({
+  task,
+  projectId,
+  boardId,
+  columns,
+  statusId,
+  parentTaskId: parentTaskIdProp = null,
+  parentTitle,
+  onClose,
+  onSave,
+  onClone,
+}: TaskModalProps) {
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [priority, setPriority] = useState<Task['priority']>(task?.priority || 'Media');
@@ -46,10 +83,27 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
   const [members, setMembers] = useState<{ uid: string; email: string; displayName?: string }[]>([]);
 
   // --- Subtareas ---
+  // Lista de subtareas hijas de esta tarea (sólo en modo edición). Cada una
+  // es una Task de pleno derecho; el TaskModal anidado se reutiliza para
+  // crearlas/editarlas con la misma UX que una tarea normal.
   const [subTasks, setSubTasks] = useState<Task[]>([]);
-  const [showSubTaskInput, setShowSubTaskInput] = useState(false);
-  const [newSubTaskTitle, setNewSubTaskTitle] = useState('');
   const [subTaskProgress, setSubTaskProgress] = useState(0);
+  const [subtaskModal, setSubtaskModal] = useState<{ isOpen: boolean; subtask?: Task | null }>({
+    isOpen: false,
+  });
+
+  // parentTaskId que viaja en la persistencia: el de la prop tiene prioridad
+  // (creación como subtarea), si no, el de la tarea existente (edición de
+  // subtarea), si no, null (tarea raíz).
+  const effectiveParentTaskId: string | null =
+    parentTaskIdProp ?? task?.parentTaskId ?? null;
+
+  // ID único por instancia para enlazar <Button form="..."> con el <form>.
+  // Cuando se renderiza un TaskModal anidado (subtarea), DEBE ser distinto
+  // del padre o el navegador resuelve `document.getElementById` al primer
+  // form encontrado — el del padre — y el submit termina llamando al
+  // onSave del padre en vez del de la subtarea.
+  const formId = useId();
 
   // --- Adjuntos ---
   const [attachments, setAttachments] = useState<AttachmentItem[]>([]);
@@ -93,40 +147,29 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
       .finally(() => setLoadingComments(false));
   }, [task?.id]);
 
+  const reloadSubTasks = async () => {
+    if (!task?.id) return;
+    const subs = await dbService.getSubTasks(task.id, projectId);
+    setSubTasks(subs);
+    setSubTaskProgress(computeProgress(subs, columns));
+  };
+
   useEffect(() => {
-    if (task?.id) {
-      dbService.getSubTasks(task.id, projectId).then((subs) => {
-        setSubTasks(subs);
-        if (subs.length > 0) {
-          const doneColumnIds = columns.filter(c => c.name.toLowerCase() === 'done' || c.name.toLowerCase() === 'finalizado').map(c => c.id);
-          const done = subs.filter(st => doneColumnIds.includes(st.status)).length;
-          setSubTaskProgress(Math.round((done / subs.length) * 100));
-        }
-      });
-    }
+    reloadSubTasks();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task?.id, columns]);
 
-  const handleAddSubTask = async () => {
-    if (!newSubTaskTitle.trim() || !task?.id) return;
-    try {
+  const handleSaveSubtask = async (subData: Partial<Task>) => {
+    if (!task?.id) return;
+    if (subtaskModal.subtask) {
+      await dbService.updateTask(projectId, subtaskModal.subtask.id, subData);
+    } else {
       await dbService.createTask(projectId, {
-        boardId,
-        status: currentStatus,
-        title: newSubTaskTitle.trim(),
-        description: '',
-        priority: 'Media',
-        type: 'Tarea',
-        assigneeIds: [],
+        ...subData,
         parentTaskId: task.id,
-      }as any);
-      const st = await dbService.getSubTasks(task.id, projectId);
-      setSubTasks(st);
-      setNewSubTaskTitle('');
-      setShowSubTaskInput(false);
-    } catch (error) {
-      console.error(error);
-      alert('Error al crear la subtarea');
+      } as any);
     }
+    await reloadSubTasks();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -146,6 +189,10 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         loggedHours: loggedHours ? parseFloat(loggedHours) : undefined,
         labels: labels.length > 0 ? labels : undefined,
         assigneeIds,
+        // Preserva la relación de subtarea (al editar) o la inyecta (al crear
+        // como subtarea). Sin esto, una subtarea perdía el ParentTaskId al
+        // editarla.
+        parentTaskId: effectiveParentTaskId,
       };
 
       const saveData = task
@@ -191,6 +238,7 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         createdAt: task?.createdAt || now,
         updatedAt: now,
         fileCount: 0,
+        // Al clonar, el clon es una tarea raíz independiente (no hereda padre).
         parentTaskId: null,
         subTaskCount: 0,
       };
@@ -280,13 +328,29 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
         className="bg-white dark:bg-gray-800 dark:text-gray-100 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden"
       >
         <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-700">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">{task ? 'Editar Tarea' : 'Nueva Tarea'}</h2>
+          <div>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-gray-50">
+              {task
+                ? effectiveParentTaskId
+                  ? 'Editar Subtarea'
+                  : 'Editar Tarea'
+                : effectiveParentTaskId
+                  ? 'Nueva Subtarea'
+                  : 'Nueva Tarea'}
+            </h2>
+            {effectiveParentTaskId && parentTitle && (
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 flex items-center gap-1">
+                <CornerDownRight className="w-3 h-3" />
+                <span>de: <span className="font-medium">{parentTitle}</span></span>
+              </p>
+            )}
+          </div>
           <button onClick={onClose} className="p-2 text-gray-400 hover:text-gray-600 dark:text-gray-300 rounded-full hover:bg-gray-100 dark:bg-gray-700">
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        <form id="task-form" onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-6">
+        <form id={formId} onSubmit={handleSubmit} className="p-6 overflow-y-auto flex-1 space-y-6">
           <Input
             label="Título"
             value={title}
@@ -636,50 +700,64 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
             </div>
           )}
 
-          {/* ── Subtareas ── */}
-          {task && (
+          {/* ── Subtareas (solo en modo edición y si esta tarea NO es ya
+              una subtarea — no permitimos jerarquías de más de un nivel). ── */}
+          {task && !effectiveParentTaskId && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-200">
                   Subtareas {subTasks.length > 0 && `(${subTaskProgress}% completado)`}
                 </label>
-                <Button type="button" variant="outline" className="text-sm py-1 h-auto"
-                  onClick={() => setShowSubTaskInput(true)}>
-                  <Plus className="w-4 h-4 mr-1" /> Añadir
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="text-sm py-1 h-auto"
+                  onClick={() => setSubtaskModal({ isOpen: true, subtask: null })}
+                >
+                  <Plus className="w-4 h-4 mr-1" /> Nueva subtarea
                 </Button>
               </div>
 
               {subTasks.length > 0 && (
                 <div className="w-full bg-gray-200 rounded-full h-1.5">
-                  <div className="bg-blue-500 h-1.5 rounded-full transition-all"
-                    style={{ width: `${subTaskProgress}%` }} />
+                  <div
+                    className="bg-blue-500 h-1.5 rounded-full transition-all"
+                    style={{ width: `${subTaskProgress}%` }}
+                  />
                 </div>
               )}
 
               <div className="space-y-1">
-                {subTasks.map((st) => (
-                  <div key={st.id} className="flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm">
-                    <span className="flex-1 text-gray-700 dark:text-gray-200">{st.title}</span>
-                    <span className="text-xs text-gray-400">{st.type}</span>
-                  </div>
-                ))}
+                {subTasks.map((st) => {
+                  const stCol = columns.find((c) => c.id === st.status);
+                  const isDone = stCol ? isDoneColumn(stCol.name) : false;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setSubtaskModal({ isOpen: true, subtask: st })}
+                      className="w-full flex items-center gap-2 p-2 bg-gray-50 dark:bg-gray-900 rounded-lg text-sm text-left hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    >
+                      <span
+                        className={`flex-1 ${isDone ? 'line-through text-gray-400' : 'text-gray-700 dark:text-gray-200'}`}
+                      >
+                        {st.title}
+                      </span>
+                      {stCol && (
+                        <span className="text-[10px] uppercase tracking-wider text-gray-400">
+                          {stCol.name}
+                        </span>
+                      )}
+                      <span className="text-xs text-gray-400">{st.type}</span>
+                    </button>
+                  );
+                })}
+                {subTasks.length === 0 && (
+                  <p className="text-xs text-gray-400 italic px-2 py-1">
+                    Aún no hay subtareas. Crea una para dividir el trabajo.
+                  </p>
+                )}
               </div>
-
-              {showSubTaskInput && (
-                <div className="flex gap-2">
-                  <input
-                    className="flex-1 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="Título de la subtarea..."
-                    value={newSubTaskTitle}
-                    onChange={(e) => setNewSubTaskTitle(e.target.value)}
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddSubTask()}
-                    autoFocus
-                  />
-                  <Button type="button" className="text-sm" onClick={handleAddSubTask}>Añadir</Button>
-                  <Button type="button" variant="ghost" className="text-sm"
-                    onClick={() => setShowSubTaskInput(false)}>Cancelar</Button>
-                </div>
-              )}
             </div>
           )}
         </form>
@@ -694,12 +772,29 @@ export function TaskModal({ task, projectId, boardId, columns, statusId, onClose
           </div>
           <div className="flex gap-3">
             <Button type="button" variant="ghost" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
-            <Button form="task-form" type="submit" isLoading={isSubmitting}>
-              {task ? 'Guardar Cambios' : 'Crear Tarea'}
+            <Button form={formId} type="submit" isLoading={isSubmitting}>
+              {task ? 'Guardar Cambios' : effectiveParentTaskId ? 'Crear Subtarea' : 'Crear Tarea'}
             </Button>
           </div>
         </div>
       </motion.div>
+
+      {/* Modal anidado para crear/editar una subtarea — reutiliza el mismo
+          TaskModal con todos sus campos. La columna por defecto al crear es
+          la del padre. */}
+      {subtaskModal.isOpen && task && (
+        <TaskModal
+          task={subtaskModal.subtask ?? null}
+          projectId={projectId}
+          boardId={boardId}
+          columns={columns}
+          statusId={subtaskModal.subtask?.status ?? currentStatus}
+          parentTaskId={task.id}
+          parentTitle={title}
+          onClose={() => setSubtaskModal({ isOpen: false })}
+          onSave={handleSaveSubtask}
+        />
+      )}
     </motion.div>
   );
 }

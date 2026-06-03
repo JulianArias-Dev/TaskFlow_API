@@ -106,6 +106,16 @@ public class TaskService : ITaskService
 		int typeId = createTaskDto.TypeId > 0 ? createTaskDto.TypeId : 1;
 		int priorityId = createTaskDto.PriorityId > 0 ? createTaskDto.PriorityId : 2;
 
+		// Validación: una subtarea no puede ser su propia raíz. Como la tarea
+		// se acaba de instanciar (Id Guid.NewGuid()) esto sólo puede pasar si
+		// el cliente envía deliberadamente el mismo Guid — defensivo.
+		if (createTaskDto.ParentTaskId.HasValue)
+		{
+			var parentExists = await _unitOfWork.Tasks.GetByIdAsync(createTaskDto.ParentTaskId.Value);
+			if (parentExists == null)
+				throw new KeyNotFoundException($"Parent task {createTaskDto.ParentTaskId} not found");
+		}
+
 		var task = new TaskEntity
 		{
 			Title = createTaskDto.Title,

@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(docker exec *)",
+      "PowerShell(docker exec taskflow-sqlserver ls /opt/)",
+      "PowerShell(docker exec taskflow-sqlserver ls /opt/mssql-tools18/bin/)",
+      "PowerShell(docker exec taskflow-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"Unicesar+2026\" -Q \"SELECT 1\")",
+      "PowerShell(docker exec taskflow-sqlserver /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"Unicesar+2026\" -C -Q \"SELECT 1\")",
+      "PowerShell(docker compose down)",
+      "PowerShell(docker compose up -d)",
+      "PowerShell(docker compose ps)",
+      "PowerShell(Invoke-RestMethod -Uri http://localhost:8080/health -UseBasicParsing)",
+      "PowerShell(Invoke-RestMethod -Uri http://localhost:8080/ -UseBasicParsing)",
+      "PowerShell(Invoke-RestMethod -Uri http://localhost:8080/)",
+      "Bash(rm package-lock.json)",
+      "Bash(npm install *)",
+      "Bash(npm ci *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :3000)",
+      "Bash(tasklist /FI \"PID eq 6404\" /FO LIST)",
+      "PowerShell(Get-Process -Id 6404 -ErrorAction SilentlyContinue)",
+      "Bash(xxd)",
+      "Bash(dotnet --version)",
+      "Bash(mkdir -p /tmp/bcrypt_gen ; ls /tmp/bcrypt_gen/ 2>&1)",
+      "Bash(dotnet run *)",
+      "Bash(jobs -p)",
+      "PowerShell(Get-Process -Id 9412 -ErrorAction SilentlyContinue)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(Get-Process -Name TaskFlow_API -ErrorAction SilentlyContinue)",
+      "PowerShell(\"ok\")",
+      "Bash(dir \"c:\\\\AngularEx\\\\Taskflow_gnr\\\\TaskFlow_API\\\\Patterns\\\\State\" /B)",
+      "Bash(dir \"c:\\\\AngularEx\\\\Taskflow_gnr\\\\TaskFlow_API\\\\Patterns\" /B)",
+      "Bash(Select-Object -Last 30)"
+    ],
+    "additionalDirectories": [
+      "\\tmp"
+    ]
+  }
+}

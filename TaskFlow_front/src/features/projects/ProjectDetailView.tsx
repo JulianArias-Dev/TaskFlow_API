@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Settings, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Clock, Box, Tag, Users, UserCircle } from 'lucide-react';
+import { ArrowLeft, Settings, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Clock, Box, Tag, Users, UserCircle, CornerDownRight, ListTree } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
@@ -436,15 +436,33 @@ export function ProjectDetailView({
                         {...provided.droppableProps}
                         ref={provided.innerRef}
                       >
-                        {columnTasks.map((task, index) => (
+                        {columnTasks.map((task, index) => {
+                          // Resolución del padre para mostrar el badge "↳ subtarea de X"
+                          // Las tareas del proyecto ya están en memoria (estado `tasks`),
+                          // así que es una búsqueda O(n) sin queries extra.
+                          const parent = task.parentTaskId
+                            ? tasks.find((t) => t.id === task.parentTaskId)
+                            : undefined;
+                          return (
                           <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={isArchived}>
                             {(provided, snapshot) => (
-                              <div 
+                              <div
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                className={`bg-white dark:bg-gray-800 dark:text-gray-100 p-3 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700 transition-shadow group flex flex-col gap-2 relative ${snapshot.isDragging ? 'shadow-lg rotate-1 z-50' : 'hover:shadow-md'}`}
+                                className={`bg-white dark:bg-gray-800 dark:text-gray-100 p-3 rounded-lg shadow-sm border ${task.parentTaskId ? 'border-l-4 border-l-indigo-300 border-y-gray-100 border-r-gray-100 dark:border-y-gray-700 dark:border-r-gray-700' : 'border-gray-100 dark:border-gray-700'} transition-shadow group flex flex-col gap-2 relative ${snapshot.isDragging ? 'shadow-lg rotate-1 z-50' : 'hover:shadow-md'}`}
                               >
+                                {parent && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); handleEditTask(parent); }}
+                                    className="flex items-center gap-1 text-[10px] text-indigo-600 hover:underline self-start"
+                                    title={`Abrir tarea padre: ${parent.title}`}
+                                  >
+                                    <CornerDownRight className="w-3 h-3" />
+                                    <span className="truncate max-w-[200px]">subtarea de: {parent.title}</span>
+                                  </button>
+                                )}
                                 {task.labels && task.labels.length > 0 && (
                                   <div className="flex flex-wrap gap-1">
                                     {task.labels.map((lbl, i) => {
@@ -479,6 +497,14 @@ export function ProjectDetailView({
                                       {task.type}
                                     </span>
                                   )}
+                                  {task.subTaskCount > 0 && (
+                                    <span
+                                      className="flex items-center gap-0.5 text-[10px] font-medium text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 px-1.5 py-0.5 rounded"
+                                      title={`${task.subTaskCount} subtarea${task.subTaskCount !== 1 ? 's' : ''}`}
+                                    >
+                                      <ListTree className="w-3 h-3" /> {task.subTaskCount}
+                                    </span>
+                                  )}
                                   {(task.dueDate || task.estimatedHours || task.loggedHours) && (
                                     <div className="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400 ml-auto">
                                       {task.dueDate && (
@@ -502,7 +528,8 @@ export function ProjectDetailView({
                               </div>
                             )}
                           </Draggable>
-                        ))}
+                          );
+                        })}
                         {provided.placeholder}
                       </div>
                     )}

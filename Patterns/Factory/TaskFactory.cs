@@ -113,7 +113,8 @@ public class TaskFactoryProvider
     public TaskFactoryProvider()
     {
         // Las claves corresponden a TaskTypes.Id seedeados en TaskFlowDbContext:
-        //   1=Feature, 2=Bug, 3=Improvement, 4=Research, 5=Task, 6=SubTask
+        //   1=Funcionalidad, 2=Error, 3=Mejora, 4=Investigación, 5=Tarea
+        // (La subtarea no es un tipo: es cualquier tarea con ParentTaskId no nulo.)
         _factories = new Dictionary<int, ITaskFactory>
         {
             { 1, new FeatureTaskFactory() },

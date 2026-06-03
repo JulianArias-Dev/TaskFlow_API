@@ -597,9 +597,12 @@ public class TaskFlowDbContext : DbContext
             new TaskType { Id = 2, Name = "Error" },
             new TaskType { Id = 3, Name = "Mejora" },
             new TaskType { Id = 4, Name = "Investigación" },
-			new TaskType { Id = 5, Name = "Tarea" },
-			new TaskType { Id = 6, Name = "Subtarea" }
-		);
+            new TaskType { Id = 5, Name = "Tarea" }
+            // Antes existía Id=6 "Subtarea": eliminado porque "subtarea" es una
+            // relación (ParentTaskId), no un tipo de trabajo. Cualquier tarea
+            // (Funcionalidad/Error/Mejora/Investigación/Tarea) puede ser subtarea
+            // si tiene ParentTaskId.
+        );
 
         modelBuilder.Entity<ProjectStatus>().HasData(
             new ProjectStatus { Id = 1, Name = "Activo" },

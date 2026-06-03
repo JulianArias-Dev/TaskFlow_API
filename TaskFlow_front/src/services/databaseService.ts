@@ -88,7 +88,13 @@ function mapBoard(b: BoardApi): Board {
     type: 'kanban',
     description: b.description,
     order: b.displayOrder,
-    columns: (b.columns ?? []).map(mapColumn),
+    // Defensa: aunque el backend ya ordena, normalizamos por displayOrder en
+    // el cliente — EF Core no garantiza el orden de colecciones incluidas si
+    // alguien cambia el `Include` en el futuro.
+    columns: (b.columns ?? [])
+      .slice()
+      .sort((x, y) => (x.displayOrder ?? 0) - (y.displayOrder ?? 0))
+      .map(mapColumn),
     createdAt: b.createdAt,
     updatedAt: b.updatedAt,
   };
@@ -548,13 +554,16 @@ export class DatabaseService {
   }
 
   private normalizeType(type: string): string {
+    // Mapea nombres legacy (inglés) al catálogo actual (español). Nota:
+    // 'Subtarea' fue eliminada — una subtarea es cualquier Task con
+    // ParentTaskId; el tipo neutro es 'Tarea'.
     const map: Record<string, string> = {
       'FEATURE': 'Funcionalidad',
       'BUG': 'Error',
       'IMPROVEMENT': 'Mejora',
       'RESEARCH': 'Investigación',
       'TASK': 'Tarea',
-      'SUBTASK': 'Subtarea',
+      'SUBTASK': 'Tarea',
     };
     return map[type?.toUpperCase()] ?? type;
   }
