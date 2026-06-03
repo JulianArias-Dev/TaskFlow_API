@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Settings, Plus, Edit2, Trash2, ChevronLeft, ChevronRight, Clock, Box, Tag, Users, UserCircle, CornerDownRight, ListTree } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,9 +9,10 @@ import { dbService } from '../../services/databaseService';
 import { ProjectSettingsModal } from './ProjectSettingsModal';
 import { TaskModal } from './TaskModal';
 import { ProjectDashboard } from './ProjectDashboard';
-
 import { TaskFilterBar, TaskFilterCriteria } from './TaskFilterBar';
 import { TaskManagerProxy, TagFactory } from '../../lib/designPatterns';
+import { MoveTaskCommand } from '@/src/lib/designPatterns/command/MoveTaskCommand';
+import { CommandManager } from '../../lib/designPatterns/command/CommandManager.invoker';
 
 export function ProjectDetailView({ 
   project, 
@@ -42,8 +43,9 @@ export function ProjectDetailView({
     }
   }, [initialTab]);
   
-  const [undoState, setUndoState] = useState<{ task: Task | null; timeoutId?: ReturnType<typeof setTimeout> }>({ task: null });
-  
+  const commandManager = useRef(new CommandManager());
+  const [undoTaskTitle, setUndoTaskTitle] = useState<string | null>(null);
+  const undoTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [taskModalState, setTaskModalState] = useState<{ isOpen: boolean; task?: Task | null; columnId: string }>({
     isOpen: false, columnId: ''
   });
@@ -175,29 +177,29 @@ export function ProjectDetailView({
     setTaskModalState({ isOpen: true, task, columnId: task.status });
   };
 
-  const triggerUndoableAction = (oldTask: Task) => {
-    if (undoState.timeoutId) clearTimeout(undoState.timeoutId);
-    const timeoutId = setTimeout(() => {
-      setUndoState({ task: null });
-    }, 10000); // 10 seconds to undo
-    setUndoState({ task: oldTask, timeoutId });
+  const showUndoToast = (taskTitle: string) => {
+    if (undoTimeoutRef.current) {
+      clearTimeout(undoTimeoutRef.current);
+    }
+
+    setUndoTaskTitle(taskTitle);
+
+    undoTimeoutRef.current = setTimeout(() => {
+      setUndoTaskTitle(null);
+    }, 5000);
   };
 
   const undoLastAction = async () => {
-    if (!undoState.task) return;
-    
-    // Reverse the update
-    await dbService.updateTask(project.id, undoState.task.id, undoState.task);
-    
-    if (undoState.timeoutId) clearTimeout(undoState.timeoutId);
-    setUndoState({ task: null });
+    await commandManager.current.undo();
+
+    if (undoTimeoutRef.current) clearTimeout(undoTimeoutRef.current);
+    setUndoTaskTitle(null);
     await loadBoard();
   };
 
   const handleSaveTask = async (taskData: Partial<Task>) => {
     if (!board) return;
     if (taskModalState.task) {
-      triggerUndoableAction(taskModalState.task);
       await dbService.updateTask(project.id, taskModalState.task.id, taskData);
     } else {
       await dbService.createTask(project.id, taskData as any);
@@ -226,7 +228,7 @@ export function ProjectDetailView({
     const newStatus = destination.droppableId;
 
     if (oldStatus !== newStatus) {
-      triggerUndoableAction(task);
+      showUndoToast(task.title);
       
       // Check if dropped into 'Done' column
       const destCol = board?.columns.find(c => c.id === newStatus);
@@ -243,7 +245,8 @@ export function ProjectDetailView({
       setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
 
       const proxy = new TaskManagerProxy();
-      await proxy.updateTask(project.id, taskId, { status: newStatus });
+      const command = new MoveTaskCommand(taskId, oldStatus, newStatus, project.id, proxy);
+      await commandManager.current.executeCommand(command);
     }
   };
 
@@ -710,7 +713,7 @@ export function ProjectDetailView({
       </AnimatePresence>
 
       <AnimatePresence>
-        {undoState.task && (
+        {undoTaskTitle && (
           <motion.div 
             initial={{ opacity: 0, y: 50, x: "-50%" }}
             animate={{ opacity: 1, y: 0, x: "-50%" }}
@@ -718,7 +721,7 @@ export function ProjectDetailView({
             className="fixed bottom-6 left-1/2 z-50 origin-bottom"
           >
             <div className="bg-gray-900 text-white px-4 py-3 rounded-lg shadow-xl flex items-center justify-between gap-4 md:min-w-[300px]">
-              <span className="text-sm">Tarea {undoState.task.title} modificada</span>
+              <span className="text-sm">Tarea {undoTaskTitle} movida</span>
               <button 
                 onClick={undoLastAction}
                 className="text-blue-400 hover:text-blue-300 text-sm font-semibold whitespace-nowrap"
