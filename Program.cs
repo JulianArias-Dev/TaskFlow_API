@@ -11,6 +11,8 @@ using TaskFlow_API.Patterns.Flyweight;
 using TaskFlow_API.Patterns.Proxy;
 using TaskFlow_API.Repositories;
 using TaskFlow_API.Services;
+using TaskFlow_API.Patterns.Observer;
+using TaskFlow_API.Patterns.Observer.ConcreteObservers;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -122,6 +124,12 @@ builder.Services.AddScoped<INotificationAdapter, SendGridNotificationAdapter>();
 // FACADE — orquesta servicios + Composite para el dashboard.
 builder.Services.AddScoped<IProjectFacade, ProjectFacade>();
 
+// OBSERVER — registramos el publisher y los observers concretos.
+builder.Services.AddSingleton<ITaskEventPublisher, TaskEventPublisher>();
+builder.Services.AddSingleton<ITaskEventObserver, AuditObserver>();
+builder.Services.AddSingleton<ITaskEventObserver, TaskAssignedObserver>();
+builder.Services.AddSingleton<ITaskEventObserver, TaskCompletedObserver>();
+
 // FLYWEIGHT — Singleton para que el cache de metadata sea global a la app.
 builder.Services.AddSingleton<ITaskFlyweightFactory, TaskFlyweightFactory>();
 
@@ -199,6 +207,10 @@ builder.Services.AddCors(options =>
 
 var app = builder.Build();
 
+var publisher = app.Services.GetRequiredService<ITaskEventPublisher>();
+foreach (var observer in app.Services.GetServices<ITaskEventObserver>())
+    publisher.Subscribe(observer);
+    
 // ----------------------------------------------------------------------
 // Pipeline HTTP
 // ----------------------------------------------------------------------

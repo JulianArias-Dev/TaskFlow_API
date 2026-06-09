@@ -9,6 +9,7 @@ using TaskEntity = TaskFlow_API.Models.Task;
 using TaskStatus = TaskFlow_API.Models.TaskStatus;
 using TaskType = TaskFlow_API.Models.TaskType;
 using TaskPriority = TaskFlow_API.Models.TaskPriority;
+using TaskFlow_API.Patterns.Observer;
 
 namespace TaskFlow_API.Services;
 
@@ -44,10 +45,12 @@ public class TaskService : ITaskService
     private readonly IUnitOfWork _unitOfWork;
     private readonly TaskFactoryProvider _taskFactory;
 	private readonly INotificationService _notificationService;
+	private readonly ITaskEventPublisher _publisher;
 
-	public TaskService(IUnitOfWork unitOfWork, INotificationService notificationService)
+	public TaskService(IUnitOfWork unitOfWork, INotificationService notificationService, ITaskEventPublisher publisher)
     {
         _unitOfWork = unitOfWork;
+		_publisher = publisher;
         _taskFactory = new TaskFactoryProvider();
         _notificationService = notificationService;
 	}
@@ -165,7 +168,14 @@ public class TaskService : ITaskService
 				string message = $"Se te ha asignado una nueva tarea en el tablero {board.Name}.\n\nTarea: {task.Title}\nPrioridad: {task.Priority}";
 				string content = NotificationContentFormatter.Build(greeting, message);
 
-				await _notificationService.NotifyAsync(userId, "ASSIGNED", subject, content);
+				await _publisher.PublishAsync(new DomainEvent
+				{
+					EventType = TaskFlowEvent.TaskAssigned,
+					UserId = userId,
+					ProjectId = board.ProjectId,
+					TaskId = task.Id,
+					Description = content
+				});
 			}
 		}
 		else
@@ -267,18 +277,18 @@ public class TaskService : ITaskService
             task.Tags = updateTaskDto.Tags;
 
 		if (updateTaskDto.ColumnId.HasValue && updateTaskDto.ColumnId.Value != Guid.Empty)
+		{
 			task.ColumnId = updateTaskDto.ColumnId.Value;
-			
-		//if (updateTaskDto.newColumn != null && updateTaskDto.newColumn.Value != task.ColumnId)
-		//{
-		//	// Verificar que la nueva columna pertenezca al mismo Tablero/Proyecto
-		//	var newColumnExists = await _unitOfWork.Columns.ExistsAsync(updateTaskDto.newColumn.Value);
-		//	if (!newColumnExists) throw new KeyNotFoundException("La columna destino no existe.");
 
-		//	task.ColumnId = updateTaskDto.newColumn.Value;
-
-		//	// Aqu� podr�as disparar una notificaci�n espec�fica de "Movimiento de Tarea"
-		//}
+			var newColumn = await _unitOfWork.Columns.GetByIdAsync(updateTaskDto.ColumnId.Value);
+			await _publisher.PublishAsync(new DomainEvent
+			{
+				EventType = TaskFlowEvent.TaskMoved,
+				TaskId = task.Id,
+				ProjectId = board.ProjectId,
+				Metadata = { ["columnName"] = newColumn?.Name ?? "" }
+			});
+		}
 
 		task.UpdatedAt = DateTime.UtcNow;
 
